@@ -9,29 +9,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  Search, 
-  ChevronLeft, 
-  Smartphone, 
-  Tablet, 
-  Laptop,
-  Package,
-  Home,
-  Monitor,
-  Battery,
-  Cpu,
-  Camera,
-  Volume2,
-  Mic,
-  Power,
-  Wrench,
-  Droplets,
-  Shield,
-  Check
-} from "lucide-react";
+import { Search, ChevronLeft } from "lucide-react";
 import { LpNavbar1 } from "@/components/pro-blocks/landing-page/lp-navbars/lp-navbar-1";
 import { Footer1 } from "@/components/pro-blocks/landing-page/footers/footer-1";
-import Image from "next/image";
 import {
   BRANDS,
   DEVICE_MODELS,
@@ -41,29 +21,20 @@ import {
   DeviceModel,
 } from "@/lib/repairData";
 
+import { Smartphone, Tablet, Laptop } from "lucide-react";
+
 const DEVICE_TYPES = [
   { id: "smartphone", label: "SMARTPHONE", icon: Smartphone },
   { id: "tablet", label: "TABLET", icon: Tablet },
   { id: "laptop", label: "LAPTOP", icon: Laptop },
 ];
 
-// Helper function to get icon for repair type
-const getRepairIcon = (repairId: string) => {
-  const iconMap: Record<string, any> = {
-    screen: Monitor,
-    battery: Battery,
-    "charging-port": Power,
-    "back-glass": Shield,
-    camera: Camera,
-    speaker: Volume2,
-    microphone: Mic,
-    motherboard: Cpu,
-    "water-damage": Droplets,
-    investigation: Search,
-    default: Wrench,
-  };
-  return iconMap[repairId] || iconMap.default;
-};
+const COLORS = [
+  { id: "black", name: "Black", hex: "#000000" },
+  { id: "white", name: "White", hex: "#FFFFFF" },
+  { id: "blue", name: "Blue", hex: "#0066CC" },
+  { id: "pink", name: "Pink", hex: "#FF69B4" },
+];
 
 export default function GetAQuotePage() {
   const [step, setStep] = useState<"device-type" | "brand" | "model" | "color" | "repair" | "finalize">("device-type");
@@ -86,32 +57,15 @@ export default function GetAQuotePage() {
   });
 
   const getFilteredBrands = () => {
-    let brands = BRANDS;
-    
-    // Filter brands based on device type
-    if (selectedDeviceType) {
-      brands = brands.filter(brand => 
-        brand.deviceTypes.includes(selectedDeviceType as "smartphone" | "tablet" | "laptop")
-      );
-    }
-    
-    // Apply search filter
-    if (!searchQuery) return brands;
-    return brands.filter((brand) =>
+    if (!searchQuery) return BRANDS;
+    return BRANDS.filter((brand) =>
       brand.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
 
   const getFilteredModels = () => {
     if (!selectedBrand) return [];
-    let models = DEVICE_MODELS.filter((model) => model.brandId === selectedBrand.id);
-    
-    // Filter by device type if selected
-    if (selectedDeviceType) {
-      models = models.filter(model => model.deviceType === selectedDeviceType);
-    }
-    
-    return models;
+    return DEVICE_MODELS.filter((model) => model.brandId === selectedBrand.id);
   };
 
   const getFilteredRepairs = () => {
@@ -129,10 +83,6 @@ export default function GetAQuotePage() {
 
   const handleModelSelect = (model: DeviceModel) => {
     setSelectedModel(model);
-    // Set the first available color for this model
-    if (model.colors && model.colors.length > 0) {
-      setSelectedColor(model.colors[0].id);
-    }
     setStep("color");
   };
 
@@ -356,21 +306,9 @@ export default function GetAQuotePage() {
                   <button
                     key={brand.id}
                     onClick={() => handleBrandSelect(brand)}
-                    className="p-6 border-2 rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center group"
+                    className="p-6 border-2 rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center"
                   >
-                    {brand.logo ? (
-                      <div className="h-12 w-12 mx-auto mb-3 flex items-center justify-center">
-                        <Image 
-                          src={brand.logo} 
-                          alt={brand.name}
-                          width={48}
-                          height={48}
-                          className="object-contain filter grayscale group-hover:grayscale-0 transition-all"
-                        />
-                      </div>
-                    ) : (
-                      <div className="text-4xl mb-2">{brand.name.charAt(0)}</div>
-                    )}
+                    <div className="text-4xl mb-2">{brand.name.charAt(0)}</div>
                     <p className="font-semibold text-sm">{brand.name}</p>
                   </button>
                 ))}
@@ -428,31 +366,17 @@ export default function GetAQuotePage() {
                   <span className="h-2 w-2 rounded-full bg-primary" />
                   Select <strong>color</strong>
                 </Label>
-                <div className="flex flex-wrap gap-3">
-                  {selectedModel.colors.map((color) => (
+                <div className="flex gap-3">
+                  {COLORS.map((color) => (
                     <button
                       key={color.id}
                       onClick={() => setSelectedColor(color.id)}
-                      className={`group relative`}
+                      className={`h-12 w-12 rounded-full border-2 transition-all ${
+                        selectedColor === color.id ? "border-primary ring-2 ring-primary ring-offset-2" : "border-gray-300"
+                      }`}
+                      style={{ backgroundColor: color.hex }}
                       title={color.name}
-                    >
-                      <div 
-                        className={`h-14 w-14 rounded-full border-4 transition-all shadow-md hover:scale-110 ${
-                          selectedColor === color.id 
-                            ? "border-primary ring-4 ring-primary ring-offset-2 scale-110" 
-                            : "border-gray-300 hover:border-gray-400"
-                        }`}
-                        style={{ backgroundColor: color.hex }}
-                      />
-                      {selectedColor === color.id && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Check className="h-6 w-6 text-white drop-shadow-lg" style={{
-                            filter: color.hex === "#FFFFFF" || color.hex === "#F5F5F7" || color.hex === "#F5F5DC" || color.hex === "#E5E5EA" ? "invert(1)" : "none"
-                          }} />
-                        </div>
-                      )}
-                      <p className="text-xs text-center mt-1 font-medium">{color.name}</p>
-                    </button>
+                    />
                   ))}
                 </div>
               </div>
@@ -484,46 +408,41 @@ export default function GetAQuotePage() {
                   Select <strong>repair</strong>
                 </Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {displayedRepairs.map((repair) => {
-                    const RepairIcon = getRepairIcon(repair.id);
-                    return (
-                      <Card
-                        key={repair.id}
-                        className={`cursor-pointer transition-all ${
-                          selectedRepairs.includes(repair.id)
-                            ? "border-primary bg-primary/5"
-                            : "hover:border-primary/50"
-                        }`}
-                        onClick={() => handleRepairToggle(repair.id)}
-                      >
-                        <div className="p-6">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                <RepairIcon className="h-5 w-5 text-primary" />
-                              </div>
-                              <div>
-                                <h3 className="font-bold text-lg">{repair.name}</h3>
-                                <p className="text-sm text-muted-foreground">{repair.duration}</p>
-                              </div>
+                  {displayedRepairs.map((repair) => (
+                    <Card
+                      key={repair.id}
+                      className={`cursor-pointer transition-all ${
+                        selectedRepairs.includes(repair.id)
+                          ? "border-primary bg-primary/5"
+                          : "hover:border-primary/50"
+                      }`}
+                      onClick={() => handleRepairToggle(repair.id)}
+                    >
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="text-3xl">{repair.icon}</div>
+                            <div>
+                              <h3 className="font-bold text-lg">{repair.name}</h3>
+                              <p className="text-sm text-muted-foreground">{repair.duration}</p>
                             </div>
-                            <Checkbox checked={selectedRepairs.includes(repair.id)} />
                           </div>
-                          {repair.badge && (
-                            <Badge variant="destructive" className="mb-2">{repair.badge}</Badge>
-                          )}
-                          <p className="text-sm text-muted-foreground mb-3">{repair.description}</p>
-                          <p className="text-2xl font-bold text-primary">
-                            {repair.price === 0 ? (
-                              <span className="text-base">Price on request</span>
-                            ) : (
-                              `$${repair.price}`
-                            )}
-                          </p>
+                          <Checkbox checked={selectedRepairs.includes(repair.id)} />
                         </div>
-                      </Card>
-                    );
-                  })}
+                        {repair.badge && (
+                          <Badge variant="destructive" className="mb-2">{repair.badge}</Badge>
+                        )}
+                        <p className="text-sm text-muted-foreground mb-3">{repair.description}</p>
+                        <p className="text-2xl font-bold text-primary">
+                          {repair.price === 0 ? (
+                            <span className="text-base">Price on request</span>
+                          ) : (
+                            `$${repair.price}`
+                          )}
+                        </p>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
 
                 {getFilteredRepairs().length > 6 && !showAllRepairs && (
@@ -580,27 +499,24 @@ export default function GetAQuotePage() {
                   <div className="space-y-4">
                     <Label className="text-lg font-semibold">Select Service Method</Label>
                     <RadioGroup value={serviceMethod} onValueChange={setServiceMethod} className="space-y-3">
-                      {SERVICE_METHODS.map((method) => {
-                        const ServiceIcon = method.id === "location" ? Home : Package;
-                        return (
-                          <label
-                            key={method.id}
-                            className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                              serviceMethod === method.id ? "border-primary bg-primary/5" : "hover:border-primary/50"
-                            }`}
-                          >
-                            <RadioGroupItem value={method.id} />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <ServiceIcon className="h-5 w-5 text-primary" />
-                                <p className="font-semibold">{method.title}</p>
-                                <Badge variant="destructive" className="ml-auto">{method.badge}</Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground">{method.subtitle}</p>
+                      {SERVICE_METHODS.map((method) => (
+                        <label
+                          key={method.id}
+                          className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            serviceMethod === method.id ? "border-primary bg-primary/5" : "hover:border-primary/50"
+                          }`}
+                        >
+                          <RadioGroupItem value={method.id} />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-2xl">{method.icon}</span>
+                              <p className="font-semibold">{method.title}</p>
+                              <Badge variant="destructive" className="ml-auto">{method.badge}</Badge>
                             </div>
-                          </label>
-                        );
-                      })}
+                            <p className="text-sm text-muted-foreground">{method.subtitle}</p>
+                          </div>
+                        </label>
+                      ))}
                     </RadioGroup>
                   </div>
 
