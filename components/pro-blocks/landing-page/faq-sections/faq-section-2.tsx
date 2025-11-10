@@ -25,27 +25,22 @@ export function FaqSection2() {
               {siteData.faq.headline}
             </h1>
             <p className="text-muted-foreground">
-              Find quick answers to common questions about our repair services, pricing, and process. Cannot find what you are looking for?{" "}
-              <Link href="#contact" className="text-primary underline">
+              Find quick answers to common questions about our repair services,
+              pricing, and process. Cannot find what you are looking for?{" "}
+              <Link href="/contact-us" className="text-primary underline">
                 Contact us.
               </Link>
             </p>
           </div>
 
           <div className="flex flex-1 flex-col gap-4">
-            <Accordion
-              type="single"
-              collapsible
-              aria-label="FAQ items"
-            >
+            <Accordion type="single" collapsible aria-label="FAQ items">
               {siteData.faq.list.map((item, index) => (
                 <AccordionItem key={index} value={`item-${index}`}>
                   <AccordionTrigger className="text-left">
                     {item.question}
                   </AccordionTrigger>
-                  <AccordionContent>
-                    {item.answer}
-                  </AccordionContent>
+                  <AccordionContent>{item.answer}</AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>

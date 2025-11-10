@@ -9,6 +9,7 @@ import { Phone, Mail, MapPin, Clock, MessageCircle, Send } from "lucide-react";
 import { siteData } from "@/lib/siteData";
 import { Tagline } from "@/components/pro-blocks/landing-page/tagline";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export function ContactUsSection() {
   const [formData, setFormData] = useState({
@@ -19,6 +20,7 @@ export function ContactUsSection() {
     issue: "",
     message: "",
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -30,9 +32,48 @@ export function ContactUsSection() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success("Message sent successfully!", {
+          description:
+            "We'll get back to you within 24 hours with a free quote.",
+        });
+        // Reset form
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          device: "",
+          issue: "",
+          message: "",
+        });
+      } else {
+        toast.error("Failed to send message", {
+          description: data.error || "Please try again later.",
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      toast.error("Failed to send message", {
+        description: "Please check your connection and try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -231,9 +272,15 @@ export function ContactUsSection() {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full">
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
                     <Send className="mr-2 h-4 w-4" />
-                    Send Message & Get Free Quote
+                    {isSubmitting
+                      ? "Sending..."
+                      : "Send Message & Get Free Quote"}
                   </Button>
 
                   <p className="text-muted-foreground text-sm text-center">
