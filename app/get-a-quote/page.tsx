@@ -396,8 +396,22 @@ export default function GetAQuotePage() {
                     className="group"
                   >
                     <div className="border-2 rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-all">
-                      <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                        <div className="text-6xl">📱</div>
+                      <div className="aspect-square bg-gray-50 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                        {model.image ? (
+                          <Image 
+                            src={model.image} 
+                            alt={model.name}
+                            width={150}
+                            height={150}
+                            className="object-contain w-full h-full p-2"
+                          />
+                        ) : (
+                          <div className="text-6xl">
+                            {model.deviceType === "smartphone" ? "📱" : 
+                             model.deviceType === "tablet" ? "📱" : 
+                             "💻"}
+                          </div>
+                        )}
                       </div>
                       <p className="font-semibold text-sm text-center">{model.name}</p>
                       <p className="text-xs text-muted-foreground text-center mt-1">
@@ -412,55 +426,91 @@ export default function GetAQuotePage() {
 
           {/* Step 4: Select Color */}
           {step === "color" && selectedModel && (
-            <div className="mx-auto max-w-4xl space-y-8">
-              <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" onClick={handleBackClick}>
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <div>
-                  <h1 className="heading-lg">{selectedModel.name}</h1>
-                  <p className="text-sm text-muted-foreground">{selectedBrand?.name}</p>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <Label className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-primary" />
-                  Select <strong>color</strong>
-                </Label>
-                <div className="flex flex-wrap gap-3">
-                  {selectedModel.colors.map((color) => (
-                    <button
-                      key={color.id}
-                      onClick={() => setSelectedColor(color.id)}
-                      className={`group relative`}
-                      title={color.name}
-                    >
-                      <div 
-                        className={`h-14 w-14 rounded-full border-4 transition-all shadow-md hover:scale-110 ${
-                          selectedColor === color.id 
-                            ? "border-primary ring-4 ring-primary ring-offset-2 scale-110" 
-                            : "border-gray-300 hover:border-gray-400"
-                        }`}
-                        style={{ backgroundColor: color.hex }}
-                      />
-                      {selectedColor === color.id && (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Check className="h-6 w-6 text-white drop-shadow-lg" style={{
-                            filter: color.hex === "#FFFFFF" || color.hex === "#F5F5F7" || color.hex === "#F5F5DC" || color.hex === "#E5E5EA" ? "invert(1)" : "none"
-                          }} />
+            <div className="mx-auto max-w-6xl">
+              <div className="grid lg:grid-cols-2 gap-8">
+                {/* Left side - Device preview */}
+                <div className="flex items-center justify-center">
+                  <div className="text-center space-y-4">
+                    <div className="bg-secondary/30 rounded-2xl p-8 inline-block">
+                      {selectedModel.image ? (
+                        <Image 
+                          src={selectedModel.image} 
+                          alt={selectedModel.name}
+                          width={300}
+                          height={300}
+                          className="object-contain"
+                        />
+                      ) : (
+                        <div className="w-72 h-72 flex items-center justify-center text-9xl">
+                          {selectedModel.deviceType === "smartphone" ? "📱" : 
+                           selectedModel.deviceType === "tablet" ? "📱" : 
+                           "💻"}
                         </div>
                       )}
-                      <p className="text-xs text-center mt-1 font-medium">{color.name}</p>
-                    </button>
-                  ))}
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold">{selectedModel.name}</h2>
+                      <p className="text-muted-foreground">{selectedBrand?.name}</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Selected: {selectedModel.colors.find(c => c.id === selectedColor)?.name || selectedColor}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex justify-end">
-                <Button onClick={() => setStep("repair")} size="lg">
-                  Continue to Repairs
-                </Button>
+                {/* Right side - Color selection */}
+                <div className="space-y-8">
+                  <div className="flex items-center gap-4">
+                    <Button variant="outline" size="icon" onClick={handleBackClick}>
+                      <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <div>
+                      <h1 className="heading-lg">Select Color</h1>
+                      <p className="text-sm text-muted-foreground">Choose your preferred color</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-primary" />
+                      Available <strong>colors</strong>
+                    </Label>
+                    <div className="flex flex-wrap gap-4">
+                      {selectedModel.colors.map((color) => (
+                        <button
+                          key={color.id}
+                          onClick={() => setSelectedColor(color.id)}
+                          className={`group relative`}
+                          title={color.name}
+                        >
+                          <div 
+                            className={`h-16 w-16 rounded-full border-4 transition-all shadow-md hover:scale-110 ${
+                              selectedColor === color.id 
+                                ? "border-primary ring-4 ring-primary ring-offset-2 scale-110" 
+                                : "border-gray-300 hover:border-gray-400"
+                            }`}
+                            style={{ backgroundColor: color.hex }}
+                          />
+                          {selectedColor === color.id && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Check className="h-6 w-6 text-white drop-shadow-lg" style={{
+                                filter: color.hex === "#FFFFFF" || color.hex === "#F5F5F7" || color.hex === "#F5F5DC" || color.hex === "#E5E5EA" ? "invert(1)" : "none"
+                              }} />
+                            </div>
+                          )}
+                          <p className="text-xs text-center mt-2 font-medium">{color.name}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button onClick={() => setStep("repair")} size="lg" className="w-full lg:w-auto">
+                      Continue to Repairs
+                      <span className="ml-2">→</span>
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -540,27 +590,86 @@ export default function GetAQuotePage() {
               </div>
 
               {selectedRepairs.length > 0 && (
-                <div className="bg-secondary p-6 rounded-lg space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Sub-total</p>
-                      <p className="text-sm text-muted-foreground">Combo discount</p>
-                      <p className="text-lg font-bold mt-2">
-                        Total <span className="text-sm text-muted-foreground font-normal">Incl. 0% tax</span>
+                <Card className="p-6 space-y-4 sticky top-4">
+                  <div className="flex items-center gap-4 pb-4 border-b">
+                    {selectedModel?.image ? (
+                      <Image 
+                        src={selectedModel.image} 
+                        alt={selectedModel.name}
+                        width={80}
+                        height={80}
+                        className="object-contain"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 bg-secondary rounded-lg flex items-center justify-center text-3xl">
+                        📱
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg">{selectedModel?.name}</h3>
+                      <p className="text-sm text-muted-foreground">{selectedBrand?.name}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Color: {selectedModel?.colors.find(c => c.id === selectedColor)?.name || selectedColor}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm">${calculateTotal()}</p>
-                      <p className="text-sm text-primary">-</p>
-                      <p className="text-3xl font-bold text-primary mt-2">${calculateTotal()}</p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm">Selected Services ({selectedRepairs.length})</h4>
+                    {selectedRepairs.map((repairId) => {
+                      const repair = REPAIR_ITEMS.find((r) => r.id === repairId);
+                      if (!repair) return null;
+                      const RepairIcon = getRepairIcon(repair.id);
+                      return (
+                        <div key={repairId} className="flex items-center justify-between py-2 border-b">
+                          <div className="flex items-center gap-3 flex-1">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                              <RepairIcon className="h-4 w-4 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-medium text-sm">{repair.name}</p>
+                              <p className="text-xs text-muted-foreground">{repair.duration}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-semibold">${repair.price}</p>
+                            <button
+                              onClick={() => handleRepairToggle(repairId)}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                              title="Remove"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="pt-4 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <p className="text-muted-foreground">Sub-total</p>
+                      <p className="font-semibold">${calculateTotal()}</p>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <p className="text-muted-foreground">Combo discount</p>
+                      <p className="text-primary font-semibold">$0</p>
+                    </div>
+                    <div className="flex items-center justify-between text-sm pb-2 border-b">
+                      <p className="text-muted-foreground">Tax (0%)</p>
+                      <p className="font-semibold">$0</p>
+                    </div>
+                    <div className="flex items-center justify-between pt-2">
+                      <p className="text-lg font-bold">Total</p>
+                      <p className="text-3xl font-bold text-primary">${calculateTotal()}</p>
                     </div>
                   </div>
+
                   <Button onClick={() => setStep("finalize")} className="w-full" size="lg">
-                    Final Step
-                    <br />
-                    <span className="text-xs">Complete your appointment</span>
+                    Continue to Final Step
+                    <span className="ml-2">→</span>
                   </Button>
-                </div>
+                </Card>
               )}
             </div>
           )}
@@ -689,29 +798,70 @@ export default function GetAQuotePage() {
 
                 <div className="space-y-6">
                   <Card className="p-6">
-                    <div className="flex items-center gap-4 mb-6">
-                      <div className="text-5xl">📱</div>
-                      <div>
-                        <h3 className="font-bold text-lg">{selectedModel?.name}</h3>
-                        <p className="text-sm text-muted-foreground">repair</p>
+                    <h3 className="font-bold text-lg mb-4">Order Summary</h3>
+                    
+                    <div className="flex items-center gap-4 pb-4 border-b mb-4">
+                      {selectedModel?.image ? (
+                        <Image 
+                          src={selectedModel.image} 
+                          alt={selectedModel.name}
+                          width={80}
+                          height={80}
+                          className="object-contain"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 bg-secondary rounded-lg flex items-center justify-center text-3xl">
+                          {selectedModel?.deviceType === "smartphone" ? "📱" : 
+                           selectedModel?.deviceType === "tablet" ? "📱" : 
+                           "💻"}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <h4 className="font-bold">{selectedModel?.name}</h4>
+                        <p className="text-sm text-muted-foreground">{selectedBrand?.name}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Color: {selectedModel?.colors.find(c => c.id === selectedColor)?.name || selectedColor}
+                        </p>
                       </div>
                     </div>
 
-                    <div className="border-t pt-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-muted-foreground">{selectedModel?.name} {selectedColor}</p>
-                        <button className="text-sm text-primary">--</button>
-                      </div>
+                    <div className="space-y-3 mb-4">
+                      <p className="font-semibold text-sm">Services ({selectedRepairs.length})</p>
+                      {selectedRepairs.map((repairId) => {
+                        const repair = REPAIR_ITEMS.find((r) => r.id === repairId);
+                        if (!repair) return null;
+                        const RepairIcon = getRepairIcon(repair.id);
+                        return (
+                          <div key={repairId} className="flex items-center justify-between py-2 border-b">
+                            <div className="flex items-center gap-2 flex-1">
+                              <RepairIcon className="h-4 w-4 text-primary shrink-0" />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">{repair.name}</p>
+                                <p className="text-xs text-muted-foreground">{repair.duration}</p>
+                              </div>
+                            </div>
+                            <p className="font-semibold">${repair.price}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
 
-                      <div className="bg-secondary p-4 rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="font-semibold">Total</p>
-                          <p className="text-3xl font-bold text-primary">${calculateTotal().toFixed(2)}</p>
+                    <div className="border-t pt-4 space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <p className="text-muted-foreground">Sub-total</p>
+                        <p className="font-semibold">${calculateTotal()}</p>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <p className="text-muted-foreground">Tax (0%)</p>
+                        <p className="font-semibold">$0</p>
+                      </div>
+                      <div className="bg-primary/10 p-4 rounded-lg mt-3">
+                        <div className="flex items-center justify-between">
+                          <p className="font-bold text-lg">Total</p>
+                          <p className="text-3xl font-bold text-primary">${calculateTotal()}</p>
                         </div>
-                        <p className="text-sm text-muted-foreground">Incl. 0% tax</p>
+                        <p className="text-xs text-muted-foreground mt-1">Incl. 0% tax</p>
                       </div>
-
-                      <button className="w-full text-sm text-primary underline">view details</button>
                     </div>
                   </Card>
 
