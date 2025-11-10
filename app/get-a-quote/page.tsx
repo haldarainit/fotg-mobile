@@ -373,15 +373,21 @@ export default function GetAQuotePage() {
                 <h1 className="heading-lg">
                   Select <span className="text-primary">repairs</span>
                 </h1>
-                <div className="flex items-center gap-4">
-                  {selectedDevice.image && (
-                    <Image
-                      src={selectedDevice.image}
-                      alt={selectedDevice.phone_name}
-                      width={50}
-                      height={50}
-                      className="h-12 w-12 object-contain"
-                    />
+                <div className="flex items-center gap-4 bg-secondary p-3 rounded-lg">
+                  {selectedDevice.image ? (
+                    <div className="relative h-12 w-12">
+                      <Image
+                        src={selectedDevice.image}
+                        alt={selectedDevice.phone_name}
+                        fill
+                        className="object-contain"
+                        sizes="48px"
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-12 w-12 rounded bg-muted flex items-center justify-center">
+                      <Smartphone className="h-6 w-6 text-muted-foreground" />
+                    </div>
                   )}
                   <div>
                     <p className="font-semibold">
@@ -614,14 +620,20 @@ export default function GetAQuotePage() {
                     <CardContent className="p-6 space-y-6">
                       {selectedDevice && (
                         <div className="flex items-center gap-4 pb-4 border-b">
-                          {selectedDevice.image && (
-                            <Image
-                              src={selectedDevice.image}
-                              alt={selectedDevice.phone_name}
-                              width={60}
-                              height={60}
-                              className="h-16 w-16 object-contain"
-                            />
+                          {selectedDevice.image ? (
+                            <div className="relative h-16 w-16">
+                              <Image
+                                src={selectedDevice.image}
+                                alt={selectedDevice.phone_name}
+                                fill
+                                className="object-contain"
+                                sizes="64px"
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-16 w-16 rounded bg-muted flex items-center justify-center">
+                              <Smartphone className="h-8 w-8 text-muted-foreground" />
+                            </div>
                           )}
                           <div>
                             <p className="font-bold text-lg">
