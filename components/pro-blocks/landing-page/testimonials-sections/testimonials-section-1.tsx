@@ -1,52 +1,60 @@
 "use client";
 
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Star } from "lucide-react";
+import { siteData } from "@/lib/siteData";
+import { Tagline } from "@/components/pro-blocks/landing-page/tagline";
 
-interface TestimonialsSection1Props {
-  quote?: string;
-  authorName?: string;
-  authorRole?: string;
-  avatarSrc?: string;
-}
-
-export default function TestimonialsSection1({
-  quote = "MindSpace is like having a photographic memory for every meeting. We reduced the follow-up emails by 80%.",
-  authorName = "David Park",
-  authorRole = "Engineering Manager at TechCorp",
-  avatarSrc = "/DavidPark.png",
-}: TestimonialsSection1Props) {
+export default function TestimonialsSection1() {
   return (
     <section
-      className="dark:bg-background container-padding-x section-padding-y flex flex-col items-center border-b bg-blue-950"
+      className="bg-secondary section-padding-y border-b"
       aria-labelledby="testimonial-title"
     >
-      {/* Content Container */}
-      <div className="flex max-w-2xl flex-col items-center gap-8">
-        {/* Testimonial Quote */}
-        <blockquote
-          id="testimonial-title"
-          className="text-center text-xl font-medium text-white md:text-3xl"
-        >
-          &quot;{quote}&quot;
-        </blockquote>
+      <div className="container-padding-x container mx-auto flex flex-col gap-10 md:gap-12">
+        {/* Section Title */}
+        <div className="section-title-gap-lg mx-auto flex max-w-xl flex-col items-center text-center">
+          <Tagline>Testimonials</Tagline>
+          <h2 id="testimonial-title" className="heading-lg text-foreground">
+            {siteData.testimonials.headline}
+          </h2>
+        </div>
 
-        {/* Author Information */}
-        <div className="flex flex-col items-center gap-4">
-          {/* Author Avatar */}
-          <Avatar className="h-12 w-12 rounded-xl ring-2 ring-white md:h-14 md:w-14">
-            <AvatarImage src={avatarSrc} alt={authorName} />
-          </Avatar>
+        {/* Testimonials Grid */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {siteData.testimonials.list.map((testimonial, index) => (
+            <div
+              key={index}
+              className="bg-background flex flex-col gap-4 rounded-xl border p-6 shadow-sm"
+            >
+              {/* Rating Stars */}
+              <div className="flex gap-1">
+                {[...Array(testimonial.rating)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className="text-primary h-5 w-5 fill-current"
+                  />
+                ))}
+              </div>
 
-          {/* Author Details */}
-          <div className="flex flex-col items-center gap-1 md:flex-row md:gap-2">
-            <span className="text-base font-medium text-white">
-              {authorName}
-            </span>
-            <span className="hidden text-white opacity-50 md:inline-block">
-              •
-            </span>
-            <span className="text-base text-white/80">{authorRole}</span>
-          </div>
+              {/* Review Text */}
+              <blockquote className="text-muted-foreground text-sm leading-relaxed">
+                &quot;{testimonial.review}&quot;
+              </blockquote>
+
+              {/* Author */}
+              <div className="flex items-center gap-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {testimonial.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-foreground font-medium text-sm">
+                  {testimonial.name}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>

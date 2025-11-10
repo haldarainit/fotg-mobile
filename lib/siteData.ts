@@ -127,7 +127,7 @@ export const siteData = {
   },
 
   brands: {
-    headline: "All Major Brands. One Trusted Solution.",
+    headline: "Trusted by 10K+ Mobile Device Owners",
     description: "No matter what device you own, FOTG Mobile has you covered. We specialize in repairing smartphones and tablets from:",
     list: [
       "Apple (iPhone, iPad)",
@@ -139,6 +139,64 @@ export const siteData = {
       "Motorola",
       "LG",
       "And many more!",
+    ],
+    logos: [
+      {
+        id: 1,
+        src: "/mobile-logo/apple.svg",
+        alt: "Apple",
+      },
+      {
+        id: 2,
+        src: "/mobile-logo/samsung.svg",
+        alt: "Samsung",
+      },
+      {
+        id: 3,
+        src: "/mobile-logo/pixel.png",
+        alt: "Google Pixel",
+      },
+      {
+        id: 4,
+        src: "/mobile-logo/oneplus.svg",
+        alt: "OnePlus",
+      },
+      {
+        id: 5,
+        src: "/mobile-logo/redmi.svg",
+        alt: "Xiaomi",
+      },
+      // {
+      //   id: 6,
+      //   src: "/mobile-logo/nokia.svg",
+      //   alt: "Nokia",
+      // },
+      {
+        id: 7,
+        src: "/mobile-logo/motorola.svg",
+        alt: "Motorola",
+      },
+      {
+        id: 9,
+        src: "/mobile-logo/lg.png",
+        alt: "LG",
+      },
+       {
+        id: 10,
+        src: "/mobile-logo/sony.svg",
+        alt: "SONY",
+      },
+       {
+        id: 11,
+        src: "/mobile-logo/vivo.svg",
+        alt: "VIVO",
+      },
+       {
+        id: 12,
+        src: "/mobile-logo/sony.svg",
+        alt: "OPPO",
+      },
+      
     ],
   },
 

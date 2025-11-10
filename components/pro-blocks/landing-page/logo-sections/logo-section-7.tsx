@@ -1,42 +1,8 @@
 "use client";
 
-import { PlaceholderLogo } from "@/components/pro-blocks/placeholder-logo"; /* Make sure to import your logos */
+import Image from "next/image";
 import { Tagline } from "@/components/pro-blocks/landing-page/tagline";
-
-const logosData = [
-  {
-    id: 1,
-    component: PlaceholderLogo,
-  },
-  {
-    id: 2,
-    component: PlaceholderLogo,
-  },
-  {
-    id: 3,
-    component: PlaceholderLogo,
-  },
-  {
-    id: 4,
-    component: PlaceholderLogo,
-  },
-  {
-    id: 5,
-    component: PlaceholderLogo,
-  },
-  {
-    id: 6,
-    component: PlaceholderLogo,
-  },
-  {
-    id: 7,
-    component: PlaceholderLogo,
-  },
-  {
-    id: 8,
-    component: PlaceholderLogo,
-  },
-];
+import { siteData } from "@/lib/siteData";
 
 export function LogoSection10() {
   return (
@@ -44,20 +10,25 @@ export function LogoSection10() {
       <div className="container-padding-x container mx-auto">
         <div className="flex flex-col items-center gap-8 md:gap-12">
           <div className="section-title-gap-lg flex max-w-xl flex-col items-center text-center">
-            <Tagline variant="ghost">Trusted by 10K+ remote teams</Tagline>
+            <Tagline variant="ghost">{siteData.brands.headline}</Tagline>
           </div>
 
           <div className="relative w-full overflow-hidden mask-[linear-gradient(to_right,transparent_0%,black_12.5%,black_87.5%,transparent_100%)]">
             <div className="animate-infinite-scroll flex w-max items-center">
-              {[...logosData, ...logosData].map((logoItem, index) => {
-                const LogoComponent = logoItem.component;
+              {[...siteData.brands.logos, ...siteData.brands.logos].map((logoItem, index) => {
                 const uniqueKey = `logo-wrapper-${logoItem.id}-${index}`;
                 return (
                   <div
                     key={uniqueKey}
-                    className="w-48 flex-shrink-0 place-items-center"
+                    className="w-48 shrink-0 place-items-center"
                   >
-                    <LogoComponent className="w-36" />
+                    <Image
+                      src={logoItem.src}
+                      alt={logoItem.alt}
+                      width={144}
+                      height={48}
+                      className="w-36 h-auto object-contain opacity-60 hover:opacity-100 transition-opacity"
+                    />
                   </div>
                 );
               })}
