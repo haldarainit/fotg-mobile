@@ -13,21 +13,21 @@ export function LogoSection10() {
             <Tagline variant="ghost">{siteData.brands.headline}</Tagline>
           </div>
 
-          <div className="relative w-full overflow-hidden mask-[linear-gradient(to_right,transparent_0%,black_12.5%,black_87.5%,transparent_100%)]">
+          <div className="relative w-full overflow-hidden">
             <div className="animate-infinite-scroll flex w-max items-center">
-              {[...siteData.brands.logos, ...siteData.brands.logos].map((logoItem, index) => {
+              {[...siteData.brands.logos, ...siteData.brands.logos, ...siteData.brands.logos].map((logoItem, index) => {
                 const uniqueKey = `logo-wrapper-${logoItem.id}-${index}`;
                 return (
                   <div
                     key={uniqueKey}
-                    className="w-48 shrink-0 place-items-center"
+                    className="w-48 shrink-0 flex items-center justify-center px-4"
                   >
                     <Image
                       src={logoItem.src}
                       alt={logoItem.alt}
-                      width={144}
-                      height={48}
-                      className="w-36 h-auto object-contain opacity-60 hover:opacity-100 transition-opacity"
+                      width={120}
+                      height={40}
+                      className="h-8 w-auto object-contain opacity-60 hover:opacity-100 transition-opacity filter grayscale hover:grayscale-0"
                     />
                   </div>
                 );
@@ -38,16 +38,16 @@ export function LogoSection10() {
       </div>
       <style jsx global>{`
         @keyframes infinite-scroll {
-          from {
+          0% {
             transform: translateX(0);
           }
-          to {
-            transform: translateX(calc(-50%));
+          100% {
+            transform: translateX(calc(-100% / 3));
           }
         }
 
         .animate-infinite-scroll {
-          animation: infinite-scroll 20s linear infinite;
+          animation: infinite-scroll 30s linear infinite;
           will-change: transform;
         }
       `}</style>

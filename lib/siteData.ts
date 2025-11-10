@@ -188,12 +188,12 @@ export const siteData = {
       },
        {
         id: 11,
-        src: "/mobile-logo/vivo.svg",
+        src: "/mobile-logo/vivo.png",
         alt: "VIVO",
       },
        {
         id: 12,
-        src: "/mobile-logo/sony.svg",
+        src: "/mobile-logo/oppo.svg",
         alt: "OPPO",
       },
       
