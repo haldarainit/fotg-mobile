@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
+import { siteData } from "@/lib/siteData";
 
 const MENU_ITEMS = [
   { label: "Home", href: "/" },
@@ -40,8 +41,16 @@ export function LpNavbar1() {
       <div className="relative container m-auto flex flex-col justify-between gap-4 px-6 md:flex-row md:items-center md:gap-6">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="FOTG mobile" width={60} height={10} className="object-contain" />
-            <span className="font-semibold text-foreground text-2xl whitespace-nowrap">FOTG mobile</span>
+            <Image
+              src="/logo.png"
+              alt={siteData.company.name}
+              width={60}
+              height={10}
+              className="object-contain"
+            />
+            <span className="font-semibold text-foreground text-2xl whitespace-nowrap">
+              {siteData.company.name}
+            </span>
           </Link>
           <Button
             variant="ghost"
