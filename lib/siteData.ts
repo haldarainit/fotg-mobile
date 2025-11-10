@@ -1,15 +1,16 @@
 export const siteData = {
   company: {
     name: "FOTG mobile",
-    tagline: "Your Device. Our Expertise. Fixed Right.",
+    tagline: "First fully Mobile Repair Shop in Texas, Dallas, DFW",
     description: "Professional mobile repair services for smartphones, tablets, and more.",
   },
 
   hero: {
-    headline: "Your Device. Our Expertise. Fixed Right.",
+    headline: "First fully Mobile Repair Shop in Texas, Dallas, DFW",
     subheadline: "Professional mobile repair services for smartphones, tablets, and more. Quick turnaround, quality guaranteed, and prices that don't break the bank.",
     primaryCTA: "Get a Free Quote",
     secondaryCTA: "Book Repair Now",
+    videoUrl: "https://player.cloudinary.com/embed/?cloud_name=dhz4my0yx&public_id=6755157-uhd_3840_2160_25fps_k1ranc&profile=cld-default&autoplay=true&muted=true&controls=false&show_logo=false&title=false&loop=true",
   },
 
   about: {

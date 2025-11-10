@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Check, ArrowRight } from "lucide-react";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Tagline } from "@/components/pro-blocks/landing-page/tagline";
-import Image from "next/image";
 import { siteData } from "@/lib/siteData";
 import Link from "next/link";
 
@@ -61,13 +60,14 @@ export function HeroSection2() {
 
         {/* Right Column */}
         <div className="w-full flex-1">
-          <AspectRatio ratio={1 / 1}>
-            <Image
-              src="/Hero.png"
-              alt="Hero visual"
-              fill
-              priority
-              className="h-full w-full rounded-xl object-cover"
+          <AspectRatio ratio={16 / 9}>
+            <iframe
+              src={siteData.hero.videoUrl}
+              title="FOTG Mobile Repair Services"
+              className="h-full w-full rounded-xl"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              allowFullScreen
+              loading="lazy"
             />
           </AspectRatio>
         </div>

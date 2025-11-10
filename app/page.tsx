@@ -21,7 +21,7 @@ export default function Page() {
       <FeatureSection9 />
       <TestimonialsSection1 />
       <StatsSection4 />
-      <PricingSection3 />
+      {/* <PricingSection3 /> */}
       <FaqSection2 />
       <Footer1 />
     </main>

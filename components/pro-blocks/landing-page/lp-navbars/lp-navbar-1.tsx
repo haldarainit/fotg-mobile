@@ -56,8 +56,8 @@ export function LpNavbar1() {
         {/* Desktop Navigation */}
         <div className="hidden w-full flex-row justify-end gap-5 md:flex">
           <NavMenuItems />
-          <Link href="#pricing">
-            <Button>Try for free</Button>
+          <Link href="/get-in-touch">
+            <Button>Get In Touch</Button>
           </Link>
         </div>
 
@@ -65,8 +65,8 @@ export function LpNavbar1() {
         {isMenuOpen && (
           <div className="flex w-full flex-col justify-end gap-5 pb-2.5 md:hidden">
             <NavMenuItems />
-            <Link href="#pricing">
-              <Button className="w-full">Try for free</Button>
+            <Link href="/get-in-touch">
+              <Button className="w-full">Get In Touch</Button>
             </Link>
           </div>
         )}
