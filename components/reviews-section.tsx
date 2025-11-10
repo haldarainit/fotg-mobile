@@ -1,70 +1,28 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Star, CheckCircle, Phone } from "lucide-react";
+import { Star, CheckCircle, Phone, Plus, Loader2 } from "lucide-react";
 import { siteData } from "@/lib/siteData";
 import { Tagline } from "@/components/pro-blocks/landing-page/tagline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AddReviewModal } from "@/components/add-review-modal";
+import { toast } from "sonner";
 
-// Simplified reviews data
-const featuredReviews = [
-  {
-    name: "Sarah M.",
-    rating: 5,
-    date: "2 days ago",
-    device: "iPhone 13 Pro",
-    service: "Water Damage Repair",
-    review:
-      "FOTG Mobile saved my phone after I dropped it in the pool! They had it working perfectly within two days. Highly recommend!",
-  },
-  {
-    name: "Rajesh K.",
-    rating: 5,
-    date: "1 week ago",
-    device: "Samsung Galaxy S22",
-    service: "Screen Replacement",
-    review:
-      "Quick, professional, and affordable. My screen looks brand new and the price was way better than I expected.",
-  },
-  {
-    name: "Priya S.",
-    rating: 5,
-    date: "2 weeks ago",
-    device: "iPhone 12",
-    service: "Battery Replacement",
-    review:
-      "I've used them twice now for different repairs. Always satisfied with the quality and speed of service.",
-  },
-  {
-    name: "Michael Johnson",
-    rating: 5,
-    date: "3 weeks ago",
-    device: "Google Pixel 7",
-    service: "Camera Repair",
-    review:
-      "My camera was completely broken after a fall. FOTG Mobile fixed it perfectly and now it takes even better photos than before.",
-  },
-  {
-    name: "Lisa Chen",
-    rating: 5,
-    date: "1 month ago",
-    device: "iPhone 14 Plus",
-    service: "Charging Port Repair",
-    review:
-      "They diagnosed the issue quickly and fixed the charging port the same day. Great communication throughout the process.",
-  },
-  {
-    name: "David Rodriguez",
-    rating: 5,
-    date: "1 month ago",
-    device: "Samsung Galaxy A54",
-    service: "Screen & Back Glass",
-    review:
-      "Professional service and fair pricing. They even cleaned the inside while they had it open. Phone looks brand new now.",
-  },
-];
+interface Review {
+  id: string;
+  name: string;
+  email: string;
+  rating: number;
+  device: string;
+  service: string;
+  review: string;
+  date?: string;
+  createdAt: Date;
+  approved: boolean;
+}
 
 const overallStats = {
   totalReviews: 1247,
@@ -77,6 +35,84 @@ const overallStats = {
 };
 
 export function ReviewsSection() {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const fetchReviews = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/reviews");
+      const result = await response.json();
+
+      if (result.success) {
+        setReviews(result.data);
+      } else {
+        toast.error("Failed to load reviews");
+      }
+    } catch (error) {
+      toast.error("Failed to load reviews");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviews();
+  }, []);
+
+  const handleReviewAdded = () => {
+    fetchReviews();
+  };
+
+  // Calculate stats from dynamic reviews
+  const overallStats = {
+    totalReviews: reviews.length,
+    averageRating:
+      reviews.length > 0
+        ? Math.round(
+            (reviews.reduce((sum, review) => sum + review.rating, 0) /
+              reviews.length) *
+              10
+          ) / 10
+        : 0,
+    fiveStars:
+      reviews.length > 0
+        ? Math.round(
+            (reviews.filter((r) => r.rating === 5).length / reviews.length) *
+              100
+          )
+        : 0,
+    fourStars:
+      reviews.length > 0
+        ? Math.round(
+            (reviews.filter((r) => r.rating === 4).length / reviews.length) *
+              100
+          )
+        : 0,
+    threeStars:
+      reviews.length > 0
+        ? Math.round(
+            (reviews.filter((r) => r.rating === 3).length / reviews.length) *
+              100
+          )
+        : 0,
+    twoStars:
+      reviews.length > 0
+        ? Math.round(
+            (reviews.filter((r) => r.rating === 2).length / reviews.length) *
+              100
+          )
+        : 0,
+    oneStar:
+      reviews.length > 0
+        ? Math.round(
+            (reviews.filter((r) => r.rating === 1).length / reviews.length) *
+              100
+          )
+        : 0,
+  };
+
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
@@ -204,53 +240,75 @@ export function ReviewsSection() {
               Here's what our customers have to say about their repair
               experience.
             </p>
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              className="mt-4"
+              size="lg"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Your Review
+            </Button>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {featuredReviews.map((review, index) => (
-              <Card
-                key={index}
-                className="bg-background rounded-xl border p-6 shadow-sm"
-              >
-                <CardContent className="p-0 space-y-4">
-                  {/* Rating Stars */}
-                  <div className="flex gap-1">{renderStars(review.rating)}</div>
-
-                  {/* Review Text */}
-                  <blockquote className="text-muted-foreground text-sm leading-relaxed">
-                    &quot;{review.review}&quot;
-                  </blockquote>
-
-                  {/* Service Info */}
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className="text-xs">
-                      {review.device}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {review.service}
-                    </Badge>
-                  </div>
-
-                  {/* Author */}
-                  <div className="flex items-center gap-3 pt-2 border-t">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                        {review.name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <span className="text-foreground font-medium text-sm">
-                        {review.name}
-                      </span>
-                      <p className="text-muted-foreground text-xs">
-                        {review.date}
-                      </p>
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : reviews.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                No reviews yet. Be the first to share your experience!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {reviews.map((review) => (
+                <Card
+                  key={review.id}
+                  className="bg-background rounded-xl border p-6 shadow-sm"
+                >
+                  <CardContent className="p-0 space-y-4">
+                    {/* Rating Stars */}
+                    <div className="flex gap-1">
+                      {renderStars(review.rating)}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+
+                    {/* Review Text */}
+                    <blockquote className="text-muted-foreground text-sm leading-relaxed">
+                      &quot;{review.review}&quot;
+                    </blockquote>
+
+                    {/* Service Info */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {review.device}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {review.service}
+                      </Badge>
+                    </div>
+
+                    {/* Author */}
+                    <div className="flex items-center gap-3 pt-2 border-t">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                          {review.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <span className="text-foreground font-medium text-sm">
+                          {review.name}
+                        </span>
+                        <p className="text-muted-foreground text-xs">
+                          {review.date}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -286,6 +344,13 @@ export function ReviewsSection() {
           </Card>
         </div>
       </section>
+
+      {/* Add Review Modal */}
+      <AddReviewModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        onReviewAdded={handleReviewAdded}
+      />
     </>
   );
 }
