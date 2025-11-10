@@ -65,7 +65,7 @@ export function LpNavbar1() {
         {/* Desktop Navigation */}
         <div className="hidden w-full flex-row justify-end gap-5 md:flex">
           <NavMenuItems />
-          <Link href="/get-in-touch">
+          <Link href="/contact-us">
             <Button>Get In Touch</Button>
           </Link>
         </div>

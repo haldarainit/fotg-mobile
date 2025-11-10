@@ -46,7 +46,7 @@ export function HeroSection2() {
 
           {/* CTA Buttons */}
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href="#pricing">
+            <Link href="/get-a-quote">
               <Button>{siteData.hero.primaryCTA}</Button>
             </Link>
             <Link href="#how-it-works">
