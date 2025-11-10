@@ -34,7 +34,7 @@ export const BRANDS: Brand[] = [
   { id: "oneplus", name: "OnePlus", logo: "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/oneplus.svg", deviceTypes: ["smartphone"] },
   { id: "xiaomi", name: "Xiaomi", logo: "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/xiaomi.svg", deviceTypes: ["smartphone"] },
   { id: "oppo", name: "Oppo", logo: "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/oppo.svg", deviceTypes: ["smartphone"] },
-  { id: "realme", name: "Realme", logo: "https://upload.wikimedia.org/wikipedia/commons/9/9e/Realme_logo.svg", deviceTypes: ["smartphone"] },
+  { id: "realme", name: "Realme", logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Realme_logo.svg/1200px-Realme_logo.svg.png", deviceTypes: ["smartphone"] },
   { id: "nokia", name: "Nokia", logo: "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/nokia.svg", deviceTypes: ["smartphone"] },
   { id: "motorola", name: "Motorola", logo: "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/motorola.svg", deviceTypes: ["smartphone"] },
   { id: "sony", name: "Sony", logo: "https://cdn.jsdelivr.net/gh/simple-icons/simple-icons/icons/sony.svg", deviceTypes: ["smartphone"] },

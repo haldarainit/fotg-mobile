@@ -9,6 +9,14 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { 
   Search, 
   ChevronLeft, 
@@ -27,7 +35,9 @@ import {
   Wrench,
   Droplets,
   Shield,
-  Check
+  Check,
+  X,
+  Info
 } from "lucide-react";
 import { LpNavbar1 } from "@/components/pro-blocks/landing-page/lp-navbars/lp-navbar-1";
 import { Footer1 } from "@/components/pro-blocks/landing-page/footers/footer-1";
@@ -76,6 +86,8 @@ export default function GetAQuotePage() {
   const [serviceMethod, setServiceMethod] = useState("");
   const [customerType, setCustomerType] = useState<"private" | "business">("private");
   const [showAllRepairs, setShowAllRepairs] = useState(false);
+  const [showFindModelDialog, setShowFindModelDialog] = useState(false);
+  const [searchResults, setSearchResults] = useState<{brands: Brand[], models: DeviceModel[]}>({brands: [], models: []});
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -100,6 +112,62 @@ export default function GetAQuotePage() {
     return brands.filter((brand) =>
       brand.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+  };
+
+  // Enhanced search that searches across brands, models, and variants
+  const performSearch = (query: string) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setSearchResults({ brands: [], models: [] });
+      return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    
+    // Search brands
+    let matchedBrands = BRANDS.filter(brand =>
+      brand.name.toLowerCase().includes(lowerQuery)
+    );
+
+    // Filter by device type if selected
+    if (selectedDeviceType) {
+      matchedBrands = matchedBrands.filter(brand =>
+        brand.deviceTypes.includes(selectedDeviceType as "smartphone" | "tablet" | "laptop")
+      );
+    }
+
+    // Search models (by name and variants)
+    let matchedModels = DEVICE_MODELS.filter(model => {
+      const nameMatch = model.name.toLowerCase().includes(lowerQuery);
+      const variantMatch = model.variants.some(variant => 
+        variant.toLowerCase().includes(lowerQuery)
+      );
+      return nameMatch || variantMatch;
+    });
+
+    // Filter by device type if selected
+    if (selectedDeviceType) {
+      matchedModels = matchedModels.filter(model =>
+        model.deviceType === selectedDeviceType
+      );
+    }
+
+    setSearchResults({ brands: matchedBrands, models: matchedModels });
+  };
+
+  const handleSearchModelSelect = (model: DeviceModel) => {
+    const brand = BRANDS.find(b => b.id === model.brandId);
+    if (brand) {
+      setSelectedBrand(brand);
+      setSelectedModel(model);
+      if (model.colors && model.colors.length > 0) {
+        setSelectedColor(model.colors[0].id);
+      }
+      setSearchQuery("");
+      setSearchResults({ brands: [], models: [] });
+      setStep("color");
+    }
   };
 
   const getFilteredModels = () => {
@@ -264,42 +332,237 @@ export default function GetAQuotePage() {
                 <div className="relative">
                   <Input
                     type="text"
-                    placeholder="iPhone 12 Pro Max"
+                    placeholder="Search: iPhone 12 Pro Max, Galaxy S24, A2783..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => performSearch(e.target.value)}
                     className="pr-10 h-12 text-lg"
                   />
                   <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  {searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSearchResults({ brands: [], models: [] });
+                      }}
+                      className="absolute right-10 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
 
-                {searchQuery && (
-                  <div className="mt-2 bg-white border rounded-lg shadow-lg max-h-96 overflow-y-auto">
-                    {getFilteredBrands().length > 0 ? (
-                      <div className="p-4">
-                        <p className="text-sm text-muted-foreground mb-3">Select a brand:</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                          {getFilteredBrands().map((brand) => (
-                            <button
-                              key={brand.id}
-                              onClick={() => handleBrandSelect(brand)}
-                              className="p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition-colors text-center"
-                            >
-                              <p className="font-semibold">{brand.name}</p>
-                            </button>
-                          ))}
+                {searchQuery && (searchResults.brands.length > 0 || searchResults.models.length > 0) && (
+                  <div className="mt-2 bg-white dark:bg-gray-900 border rounded-lg shadow-lg max-h-[500px] overflow-y-auto">
+                    <div className="p-4">
+                      {/* Direct Model Results */}
+                      {searchResults.models.length > 0 && (
+                        <div className="mb-6">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-semibold text-primary">Direct Matches ({searchResults.models.length})</p>
+                            <Badge variant="secondary" className="text-xs">Models</Badge>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {searchResults.models.slice(0, 6).map((model) => {
+                              const brand = BRANDS.find(b => b.id === model.brandId);
+                              return (
+                                <button
+                                  key={model.id}
+                                  onClick={() => handleSearchModelSelect(model)}
+                                  className="flex items-center gap-3 p-3 border-2 rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-left"
+                                >
+                                  <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center shrink-0">
+                                    {model.deviceType === "smartphone" && <Smartphone className="h-6 w-6 text-primary" />}
+                                    {model.deviceType === "tablet" && <Tablet className="h-6 w-6 text-primary" />}
+                                    {model.deviceType === "laptop" && <Laptop className="h-6 w-6 text-primary" />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-semibold text-sm truncate">{model.name}</p>
+                                    <p className="text-xs text-muted-foreground">{brand?.name}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{model.variants.join(", ")}</p>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {searchResults.models.length > 6 && (
+                            <p className="text-xs text-muted-foreground mt-2 text-center">
+                              +{searchResults.models.length - 6} more results
+                            </p>
+                          )}
                         </div>
-                      </div>
-                    ) : (
-                      <p className="p-4 text-muted-foreground">No brands found</p>
-                    )}
+                      )}
+
+                      {/* Brand Results */}
+                      {searchResults.brands.length > 0 && (
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-semibold">Brands ({searchResults.brands.length})</p>
+                            <Badge variant="outline" className="text-xs">Browse by brand</Badge>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            {searchResults.brands.map((brand) => (
+                              <button
+                                key={brand.id}
+                                onClick={() => handleBrandSelect(brand)}
+                                className="p-4 border-2 rounded-lg hover:border-primary hover:bg-primary/5 transition-colors text-center"
+                              >
+                                {brand.logo && (
+                                  <div className="h-8 w-8 mx-auto mb-2">
+                                    <Image 
+                                      src={brand.logo} 
+                                      alt={brand.name}
+                                      width={32}
+                                      height={32}
+                                      className="object-contain filter grayscale hover:grayscale-0"
+                                    />
+                                  </div>
+                                )}
+                                <p className="font-semibold text-sm">{brand.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {brand.deviceTypes.join(", ")}
+                                </p>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <button className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-secondary transition-colors">
-                    <span className="text-lg">🔍</span>
-                    Find my model
-                  </button>
+                {searchQuery && searchResults.brands.length === 0 && searchResults.models.length === 0 && (
+                  <div className="mt-2 bg-white dark:bg-gray-900 border rounded-lg shadow-lg p-6 text-center">
+                    <div className="text-4xl mb-3">🔍</div>
+                    <p className="font-semibold mb-2">No results found</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Try searching for brand name, model name, or model code
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowFindModelDialog(true)}
+                    >
+                      <Info className="h-4 w-4 mr-2" />
+                      How to find my model
+                    </Button>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-4">
+                  <Dialog open={showFindModelDialog} onOpenChange={setShowFindModelDialog}>
+                    <DialogTrigger asChild>
+                      <button className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-secondary transition-colors text-sm">
+                        <Info className="h-4 w-4" />
+                        Find my model
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle className="text-2xl">How to Find Your Device Model</DialogTitle>
+                        <DialogDescription>
+                          Follow these simple steps to locate your device model information
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-6 mt-4">
+                        {/* iOS Devices */}
+                        <div className="border rounded-lg p-4 bg-secondary/20">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Smartphone className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg">iOS (iPhone/iPad)</h3>
+                              <p className="text-xs text-muted-foreground">Apple devices</p>
+                            </div>
+                          </div>
+                          <ol className="space-y-3 text-sm">
+                            <li className="flex gap-3">
+                              <span className="font-bold text-primary shrink-0">1.</span>
+                              <span>Go to <strong>Settings</strong> app on your device</span>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="font-bold text-primary shrink-0">2.</span>
+                              <span>Tap <strong>General</strong> → <strong>About</strong></span>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="font-bold text-primary shrink-0">3.</span>
+                              <span>Look for <strong>Model Name</strong> (e.g., iPhone 15 Pro) and <strong>Model Number</strong> (e.g., A2848)</span>
+                            </li>
+                          </ol>
+                        </div>
+
+                        {/* Android Devices */}
+                        <div className="border rounded-lg p-4 bg-secondary/20">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                              <Smartphone className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg">Android Devices</h3>
+                              <p className="text-xs text-muted-foreground">Samsung, Google, etc.</p>
+                            </div>
+                          </div>
+                          <ol className="space-y-3 text-sm">
+                            <li className="flex gap-3">
+                              <span className="font-bold text-green-600 shrink-0">1.</span>
+                              <span>Open <strong>Settings</strong> app</span>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="font-bold text-green-600 shrink-0">2.</span>
+                              <span>Scroll down to <strong>About Phone</strong> or <strong>About Device</strong></span>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="font-bold text-green-600 shrink-0">3.</span>
+                              <span>Find <strong>Model Name</strong> and <strong>Model Number</strong> (e.g., SM-S928 for Galaxy S24 Ultra)</span>
+                            </li>
+                          </ol>
+                        </div>
+
+                        {/* Laptops */}
+                        <div className="border rounded-lg p-4 bg-secondary/20">
+                          <div className="flex items-center gap-3 mb-4">
+                            <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                              <Laptop className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg">Laptops</h3>
+                              <p className="text-xs text-muted-foreground">Windows & Mac</p>
+                            </div>
+                          </div>
+                          <div className="space-y-4 text-sm">
+                            <div>
+                              <p className="font-semibold mb-2">Windows:</p>
+                              <ol className="space-y-2 ml-4">
+                                <li>• Press <kbd className="px-2 py-1 bg-secondary rounded text-xs">Win</kbd> + <kbd className="px-2 py-1 bg-secondary rounded text-xs">R</kbd></li>
+                                <li>• Type <code className="bg-secondary px-2 py-1 rounded">msinfo32</code> and press Enter</li>
+                                <li>• Check System Model</li>
+                              </ol>
+                            </div>
+                            <div>
+                              <p className="font-semibold mb-2">Mac:</p>
+                              <ol className="space-y-2 ml-4">
+                                <li>• Click Apple menu → <strong>About This Mac</strong></li>
+                                <li>• View model information (e.g., MacBook Pro 14" M4)</li>
+                              </ol>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                          <div className="flex gap-3">
+                            <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                            <div className="text-sm">
+                              <p className="font-semibold text-blue-900 dark:text-blue-100 mb-1">Pro Tip</p>
+                              <p className="text-blue-800 dark:text-blue-200">
+                                The model number is usually more accurate for searching. You can also check the original box or receipt for this information.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
 
