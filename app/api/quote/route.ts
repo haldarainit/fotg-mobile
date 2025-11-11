@@ -44,12 +44,12 @@ export async function POST(request: NextRequest) {
         ? "Bring to our location"
         : "At home with pick-up & delivery";
 
-    // Format repairs list
+    // Format repairs list (include selected part quality when available)
     const repairsList = repairs
-      .map(
-        (repair: any) =>
-          `<li>${repair.name} - $${repair.price} (${repair.duration})</li>`
-      )
+      .map((repair: any) => {
+        const qualityLabel = repair.partQuality && repair.partQuality.name ? ` <strong>(${repair.partQuality.name})</strong>` : "";
+        return `<li>${repair.name}${qualityLabel} - $${repair.price} (${repair.duration})</li>`;
+      })
       .join("");
 
     // Email content
@@ -201,9 +201,10 @@ Service Method: ${serviceMethodText}
 
 Selected Repairs:
 ${repairs
-  .map(
-    (repair: any) => `- ${repair.name} - $${repair.price} (${repair.duration})`
-  )
+  .map((repair: any) => {
+    const qualityLabel = repair.partQuality && repair.partQuality.name ? ` (${repair.partQuality.name})` : "";
+    return `- ${repair.name}${qualityLabel} - $${repair.price} (${repair.duration})`;
+  })
   .join("\n")}
 
 ${

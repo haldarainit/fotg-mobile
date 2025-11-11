@@ -53,7 +53,7 @@ export const DEVICE_MODELS: DeviceModel[] = [
   { 
     id: "iphone-16-pro-max", 
     name: "iPhone 16 Pro Max", 
-    image: "/devices/iphone-16-pro-max.png", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/IPhone_16_Pro_Max.png/220px-IPhone_16_Pro_Max.png", 
     variants: ["A3294", "A3365"], 
     brandId: "apple",
     deviceType: "smartphone",
@@ -67,7 +67,7 @@ export const DEVICE_MODELS: DeviceModel[] = [
   { 
     id: "iphone-16-pro", 
     name: "iPhone 16 Pro", 
-    image: "/devices/iphone-16-pro.png", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/IPhone_16_Pro.png/220px-IPhone_16_Pro.png", 
     variants: ["A3288", "A3359"], 
     brandId: "apple",
     deviceType: "smartphone",
@@ -81,7 +81,7 @@ export const DEVICE_MODELS: DeviceModel[] = [
   { 
     id: "iphone-16-plus", 
     name: "iPhone 16 Plus", 
-    image: "/devices/iphone-16-plus.png", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/IPhone_16_Plus.png/220px-IPhone_16_Plus.png", 
     variants: ["A3094", "A2847"], 
     brandId: "apple",
     deviceType: "smartphone",
@@ -96,7 +96,7 @@ export const DEVICE_MODELS: DeviceModel[] = [
   { 
     id: "iphone-16", 
     name: "iPhone 16", 
-    image: "/devices/iphone-16.png", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/IPhone_16.png/220px-IPhone_16.png", 
     variants: ["A3287", "A3081"], 
     brandId: "apple",
     deviceType: "smartphone",
@@ -111,7 +111,7 @@ export const DEVICE_MODELS: DeviceModel[] = [
   { 
     id: "iphone-15-pro-max", 
     name: "iPhone 15 Pro Max", 
-    image: "/devices/iphone-15-pro-max.png", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/IPhone_15_Pro_Max.png/220px-IPhone_15_Pro_Max.png", 
     variants: ["A2848", "A3105"], 
     brandId: "apple",
     deviceType: "smartphone",
@@ -125,7 +125,7 @@ export const DEVICE_MODELS: DeviceModel[] = [
   { 
     id: "iphone-15-pro", 
     name: "iPhone 15 Pro", 
-    image: "/devices/iphone-15-pro.png", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/IPhone_15_Pro.png/220px-IPhone_15_Pro.png", 
     variants: ["A2849", "A3106"], 
     brandId: "apple",
     deviceType: "smartphone",
@@ -139,7 +139,7 @@ export const DEVICE_MODELS: DeviceModel[] = [
   { 
     id: "iphone-15-plus", 
     name: "iPhone 15 Plus", 
-    image: "/devices/iphone-15-plus.png", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/IPhone_15_Plus.png/220px-IPhone_15_Plus.png", 
     variants: ["A2846", "A3089"], 
     brandId: "apple",
     deviceType: "smartphone",
@@ -154,7 +154,7 @@ export const DEVICE_MODELS: DeviceModel[] = [
   { 
     id: "iphone-15", 
     name: "iPhone 15", 
-    image: "/devices/iphone-15.png", 
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/IPhone_15.png/220px-IPhone_15.png", 
     variants: ["A2847", "A3090"], 
     brandId: "apple",
     deviceType: "smartphone",

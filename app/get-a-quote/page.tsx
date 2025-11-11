@@ -51,6 +51,8 @@ import {
   Brand,
   DeviceModel,
 } from "@/lib/repairData";
+import { Tabs,TabsTrigger , TabsList,TabsContent} from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 
 const DEVICE_TYPES = [
   { id: "smartphone", label: "SMARTPHONE", icon: Smartphone },
@@ -76,6 +78,42 @@ const getRepairIcon = (repairId: string) => {
   return iconMap[repairId] || iconMap.default;
 };
 
+// Part quality options for repairs that support it
+const PART_QUALITY_OPTIONS = {
+  screen: [
+    {
+      id: "oem",
+      name: "Original (OEM)",
+      duration: "15 minutes",
+      description: "Official authentic part made by the brand's manufacturer.",
+      priceMultiplier: 1.4, // 40% more expensive
+    },
+    {
+      id: "aftermarket",
+      name: "Premium Aftermarket",
+      duration: "15 minutes",
+      description: "Best available alternative to original. Almost identical to original quality.",
+      priceMultiplier: 1.0, // Base price
+    },
+  ],
+  battery: [
+    {
+      id: "oem",
+      name: "Original (OEM)",
+      duration: "15 minutes",
+      description: "Official authentic part made by the brand's manufacturer.",
+      priceMultiplier: 1.4,
+    },
+    {
+      id: "aftermarket",
+      name: "Premium Aftermarket",
+      duration: "15 minutes",
+      description: "Best available alternative to original. Almost identical to original quality.",
+      priceMultiplier: 1.0,
+    },
+  ],
+};
+
 export default function GetAQuotePage() {
   const [step, setStep] = useState<
     "device-type" | "brand" | "model" | "color" | "repair" | "finalize"
@@ -86,12 +124,15 @@ export default function GetAQuotePage() {
   const [selectedModel, setSelectedModel] = useState<DeviceModel | null>(null);
   const [selectedColor, setSelectedColor] = useState("black");
   const [selectedRepairs, setSelectedRepairs] = useState<string[]>([]);
+  const [repairPartQuality, setRepairPartQuality] = useState<Record<string, "oem" | "aftermarket">>({});
   const [serviceMethod, setServiceMethod] = useState("");
   const [customerType, setCustomerType] = useState<"private" | "business">(
     "private"
   );
   const [showAllRepairs, setShowAllRepairs] = useState(false);
   const [showFindModelDialog, setShowFindModelDialog] = useState(false);
+  const [showPartQualityDialog, setShowPartQualityDialog] = useState(false);
+  const [selectedRepairForQuality, setSelectedRepairForQuality] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<{
     brands: Brand[];
     models: DeviceModel[];
@@ -239,17 +280,60 @@ export default function GetAQuotePage() {
   };
 
   const handleRepairToggle = (repairId: string) => {
-    setSelectedRepairs((prev) =>
-      prev.includes(repairId)
-        ? prev.filter((id) => id !== repairId)
-        : [...prev, repairId]
-    );
+    const isSelected = selectedRepairs.includes(repairId);
+    const hasQualityOptions = PART_QUALITY_OPTIONS[repairId as keyof typeof PART_QUALITY_OPTIONS];
+
+    if (!isSelected && hasQualityOptions) {
+      // Show quality selection dialog when selecting a repair that has quality options
+      setSelectedRepairForQuality(repairId);
+      setShowPartQualityDialog(true);
+    } else if (isSelected) {
+      // Deselect repair
+      setSelectedRepairs((prev) => prev.filter((id) => id !== repairId));
+      // Remove quality selection
+      setRepairPartQuality((prev) => {
+        const newQuality = { ...prev };
+        delete newQuality[repairId];
+        return newQuality;
+      });
+    } else {
+      // No quality options, just toggle
+      setSelectedRepairs((prev) => [...prev, repairId]);
+    }
+  };
+
+  const handlePartQualitySelect = (quality: "oem" | "aftermarket") => {
+    if (selectedRepairForQuality) {
+      setRepairPartQuality((prev) => ({
+        ...prev,
+        [selectedRepairForQuality]: quality,
+      }));
+      setSelectedRepairs((prev) => [...prev, selectedRepairForQuality]);
+      setShowPartQualityDialog(false);
+      setSelectedRepairForQuality(null);
+    }
+  };
+
+  const getRepairPrice = (repairId: string): number => {
+    const repair = REPAIR_ITEMS.find((r) => r.id === repairId);
+    if (!repair) return 0;
+    
+    const quality = repairPartQuality[repairId];
+    const qualityOptions = PART_QUALITY_OPTIONS[repairId as keyof typeof PART_QUALITY_OPTIONS];
+    
+    if (quality && qualityOptions) {
+      const selectedQuality = qualityOptions.find((q) => q.id === quality);
+      if (selectedQuality) {
+        return Math.round(repair.price * selectedQuality.priceMultiplier);
+      }
+    }
+    
+    return repair.price;
   };
 
   const calculateTotal = () => {
     return selectedRepairs.reduce((total, repairId) => {
-      const repair = REPAIR_ITEMS.find((r) => r.id === repairId);
-      return total + (repair?.price || 0);
+      return total + getRepairPrice(repairId);
     }, 0);
   };
 
@@ -261,11 +345,21 @@ export default function GetAQuotePage() {
       // Prepare repairs data with full details
       const repairsData = selectedRepairs.map((repairId) => {
         const repair = REPAIR_ITEMS.find((r) => r.id === repairId);
+        const quality = repairPartQuality[repairId];
+        const qualityOptions = PART_QUALITY_OPTIONS[repairId as keyof typeof PART_QUALITY_OPTIONS];
+        const selectedQualityOption = quality && qualityOptions 
+          ? qualityOptions.find((q) => q.id === quality)
+          : null;
+
         return {
           id: repair?.id,
           name: repair?.name,
-          price: repair?.price,
+          price: getRepairPrice(repairId),
           duration: repair?.duration,
+          partQuality: selectedQualityOption ? {
+            type: quality,
+            name: selectedQualityOption.name,
+          } : undefined,
         };
       });
 
@@ -459,6 +553,18 @@ export default function GetAQuotePage() {
                       <X className="h-4 w-4" />
                     </button>
                   )}
+                </div>
+
+                {/* Find My Model Button */}
+                <div className="flex justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowFindModelDialog(true)}
+                    className="gap-2"
+                  >
+                    <Info className="h-4 w-4" />
+                    How to find my model?
+                  </Button>
                 </div>
 
                 {searchQuery &&
@@ -828,6 +934,18 @@ export default function GetAQuotePage() {
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               </div>
 
+              {/* Find My Model Button */}
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFindModelDialog(true)}
+                  className="gap-2"
+                >
+                  <Info className="h-4 w-4" />
+                  How to find my model?
+                </Button>
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {getFilteredBrands().map((brand) => (
                   <button
@@ -836,13 +954,13 @@ export default function GetAQuotePage() {
                     className="p-6 border-2 rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center group"
                   >
                     {brand.logo ? (
-                      <div className="h-12 w-12 mx-auto mb-3 flex items-center justify-center">
+                      <div className="h-18 w-18 mx-auto flex items-center justify-center">
                         <Image
                           src={brand.logo}
                           alt={brand.name}
-                          width={48}
-                          height={48}
-                          className="object-contain filter grayscale group-hover:grayscale-0 transition-all"
+                          width={58}
+                          height={58}
+                          className="object-contain  transition-all"
                         />
                       </div>
                     ) : (
@@ -850,7 +968,7 @@ export default function GetAQuotePage() {
                         {brand.name.charAt(0)}
                       </div>
                     )}
-                    <p className="font-semibold text-sm">{brand.name}</p>
+                    {/* <p className="font-semibold text-sm">{brand.name}</p> */}
                   </button>
                 ))}
               </div>
@@ -868,6 +986,18 @@ export default function GetAQuotePage() {
                   {selectedBrand.name} -{" "}
                   <span className="text-primary">Select Model</span>
                 </h1>
+              </div>
+
+              {/* Find My Model Button */}
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFindModelDialog(true)}
+                  className="gap-2"
+                >
+                  <Info className="h-4 w-4" />
+                  How to find my model?
+                </Button>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -1054,11 +1184,15 @@ export default function GetAQuotePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {displayedRepairs.map((repair) => {
                     const RepairIcon = getRepairIcon(repair.id);
+                    const isSelected = selectedRepairs.includes(repair.id);
+                    const hasQualityOptions = PART_QUALITY_OPTIONS[repair.id as keyof typeof PART_QUALITY_OPTIONS];
+                    const selectedQuality = repairPartQuality[repair.id];
+                    
                     return (
                       <Card
                         key={repair.id}
                         className={`cursor-pointer transition-all ${
-                          selectedRepairs.includes(repair.id)
+                          isSelected
                             ? "border-primary bg-primary/5"
                             : "hover:border-primary/50"
                         }`}
@@ -1079,27 +1213,35 @@ export default function GetAQuotePage() {
                                 </p>
                               </div>
                             </div>
-                            <Checkbox
-                              checked={selectedRepairs.includes(repair.id)}
-                            />
+                            <Checkbox checked={isSelected} />
                           </div>
                           {repair.badge && (
                             <Badge variant="destructive" className="mb-2">
                               {repair.badge}
                             </Badge>
                           )}
+                          {isSelected && selectedQuality && hasQualityOptions && (
+                            <Badge variant="secondary" className="mb-2">
+                              {selectedQuality === "oem" ? "Original (OEM)" : "Premium Aftermarket"}
+                            </Badge>
+                          )}
                           <p className="text-sm text-muted-foreground mb-3">
                             {repair.description}
                           </p>
-                          <p className="text-2xl font-bold text-primary">
-                            {repair.price === 0 ? (
-                              <span className="text-base">
-                                Price on request
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-2xl font-bold text-primary">
+                              {repair.price === 0 ? (
+                                <span className="text-base">Price on request</span>
+                              ) : (
+                                `$${isSelected ? getRepairPrice(repair.id) : repair.price}`
+                              )}
+                            </p>
+                            {hasQualityOptions && repair.price > 0 && (
+                              <span className="text-xs text-muted-foreground">
+                                starting at
                               </span>
-                            ) : (
-                              `$${repair.price}`
                             )}
-                          </p>
+                          </div>
                         </div>
                       </Card>
                     );
@@ -1161,6 +1303,8 @@ export default function GetAQuotePage() {
                       );
                       if (!repair) return null;
                       const RepairIcon = getRepairIcon(repair.id);
+                      const quality = repairPartQuality[repairId];
+                      
                       return (
                         <div
                           key={repairId}
@@ -1174,13 +1318,18 @@ export default function GetAQuotePage() {
                               <p className="font-medium text-sm">
                                 {repair.name}
                               </p>
+                              {quality && (
+                                <Badge variant="outline" className="text-xs mt-1">
+                                  {quality === "oem" ? "Original (OEM)" : "Premium Aftermarket"}
+                                </Badge>
+                              )}
                               <p className="text-xs text-muted-foreground">
                                 {repair.duration}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold">${repair.price}</p>
+                            <p className="font-semibold">${getRepairPrice(repairId)}</p>
                             <button
                               onClick={() => handleRepairToggle(repairId)}
                               className="text-muted-foreground hover:text-destructive transition-colors"
@@ -1519,6 +1668,192 @@ export default function GetAQuotePage() {
           )}
         </div>
       </div>
+
+      {/* Part Quality Selection Dialog */}
+      <Dialog open={showPartQualityDialog} onOpenChange={setShowPartQualityDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Select Part Quality</DialogTitle>
+            <DialogDescription>
+              Choose the quality of the part for your repair. Both options come with warranty.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedRepairForQuality && PART_QUALITY_OPTIONS[selectedRepairForQuality as keyof typeof PART_QUALITY_OPTIONS] && (
+            <div className="grid gap-4 py-4">
+              {PART_QUALITY_OPTIONS[selectedRepairForQuality as keyof typeof PART_QUALITY_OPTIONS].map((option) => {
+                const repair = REPAIR_ITEMS.find((r) => r.id === selectedRepairForQuality);
+                const price = repair ? Math.round(repair.price * option.priceMultiplier) : 0;
+                
+                return (
+                  <Card
+                    key={option.id}
+                    className="cursor-pointer transition-all hover:border-primary"
+                    onClick={() => handlePartQualitySelect(option.id as "oem" | "aftermarket")}
+                  >
+                    <div className="p-6">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-bold text-xl mb-2">{option.name}</h3>
+                          <p className="text-sm text-muted-foreground mb-1">
+                            {option.duration}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {option.description}
+                          </p>
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-3xl font-bold text-primary">
+                            ${price}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Find My Model Dialog */}
+      <Dialog open={showFindModelDialog} onOpenChange={setShowFindModelDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">Find model or model code</DialogTitle>
+            <DialogDescription>
+              Follow the instructions below to find your device model number
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs defaultValue="ios" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="ios">Apple iOS</TabsTrigger>
+              <TabsTrigger value="android">Android</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="ios" className="space-y-6 mt-6">
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Badge variant="destructive" className="mt-1">STEP 1</Badge>
+                    <p className="text-sm flex-1">
+                      Go to the <strong>'Settings'</strong> app on your iOS device.
+                    </p>
+                  </div>
+                  <div className="relative w-full aspect-[9/16] max-w-xs mx-auto rounded-lg overflow-hidden border">
+                    <Image
+                      src="/ios/ios-step-1-min.jpg"
+                      alt="iOS Step 1"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Badge variant="destructive" className="mt-1">STEP 2</Badge>
+                    <p className="text-sm flex-1">
+                      Tap on <strong>'General'</strong> in Settings and then on <strong>'About'</strong>.
+                    </p>
+                  </div>
+                  <div className="relative w-full aspect-[9/16] max-w-xs mx-auto rounded-lg overflow-hidden border">
+                    <Image
+                      src="/ios/ios-step-2-min.jpg"
+                      alt="iOS Step 2"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Badge variant="destructive" className="mt-1">STEP 3</Badge>
+                    <p className="text-sm flex-1">
+                      At <strong>'Model Name'</strong>, you will see the name. If you search by model code, you need in 2-code. Tap on <strong>'Model Number'</strong> to search by a 2-code.
+                    </p>
+                  </div>
+                  <div className="relative w-full aspect-[9/16] max-w-xs mx-auto rounded-lg overflow-hidden border">
+                    <Image
+                      src="/ios/ios-step-3-min.jpg"
+                      alt="iOS Step 3"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="android" className="space-y-6 mt-6">
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Badge variant="destructive" className="mt-1">STEP 1</Badge>
+                    <p className="text-sm flex-1">
+                      Go to the home screen of your device and tap on the <strong>'Settings'</strong> icon.
+                    </p>
+                  </div>
+                  <div className="relative w-full aspect-[9/16] max-w-xs mx-auto rounded-lg overflow-hidden border">
+                    <Image
+                      src="/android/android-step-1-min.jpg"
+                      alt="Android Step 1"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Badge variant="destructive" className="mt-1">STEP 2</Badge>
+                    <p className="text-sm flex-1">
+                      Look in the <strong>'Settings'</strong> menu for an option such as <strong>'About Phone'</strong>, <strong>'About Tablet'</strong>, <strong>'Device Information'</strong>, or something similar.
+                    </p>
+                  </div>
+                  <div className="relative w-full aspect-[9/16] max-w-xs mx-auto rounded-lg overflow-hidden border">
+                    <Image
+                      src="/android/android-step-2-min.jpg"
+                      alt="Android Step 2"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Badge variant="destructive" className="mt-1">STEP 3</Badge>
+                    <p className="text-sm flex-1">
+                      In the 'About Phone' menu, you will find information about your device, including the <strong>model name</strong> and <strong>model number</strong>.
+                    </p>
+                  </div>
+                  <div className="relative w-full aspect-[9/16] max-w-xs mx-auto rounded-lg overflow-hidden border">
+                    <Image
+                      src="/android/android-step-3-min-m.jpg"
+                      alt="Android Step 3"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
+
       <Footer1 />
     </>
   );
