@@ -56,7 +56,7 @@ export default function Page() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <div className="flex justify-between items-center px-4 lg:px-6">
-                <h1 className="text-3xl font-bold">Dashboard - Contact Submissions</h1>
+                <h1 className="text-3xl font-bold">Contact Submissions</h1>
                 <Button
                   variant="outline"
                   onClick={handleLogout}

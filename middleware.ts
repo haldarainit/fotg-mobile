@@ -3,8 +3,19 @@ import { NextRequest, NextResponse } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if accessing admin routes (except login page)
-  if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
+  // Protected admin routes (except login page)
+  const protectedAdminRoutes = [
+    "/admin",
+    "/admin/devices",
+    "/admin/reviews",
+    "/admin/contact",
+  ];
+
+  // Check if accessing protected admin routes
+  if (
+    protectedAdminRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"))
+    && pathname !== "/admin/login"
+  ) {
     const token = request.cookies.get("admin_token");
 
     // If no token, redirect to login
