@@ -1,5 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import connectDB from "@/lib/mongodb";
+import mongoose from "mongoose";
+
+// Contact submission schema
+const contactSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  phone: String,
+  device: String,
+  issue: String,
+  message: String,
+  createdAt: { type: Date, default: Date.now },
+});
+
+// Check if model exists, otherwise create it
+const Contact =
+  mongoose.models.Contact || mongoose.model("Contact", contactSchema);
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +28,22 @@ export async function POST(request: NextRequest) {
         { error: "All required fields must be filled" },
         { status: 400 }
       );
+    }
+
+    // Save to MongoDB
+    try {
+      await connectDB();
+      await Contact.create({
+        name,
+        email,
+        phone,
+        device,
+        issue,
+        message,
+      });
+    } catch (dbError) {
+      console.error("Database save error:", dbError);
+      // Continue with email sending even if DB save fails
     }
 
     // Create a transporter using Hostinger SMTP settings

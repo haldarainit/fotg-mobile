@@ -2,8 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Review from "@/models/Review";
 
+// Middleware to check authentication
+function checkAuth(request: NextRequest) {
+  const token = request.cookies.get("admin_token");
+  if (!token) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+  return null;
+}
+
 // GET - Fetch all reviews (including unapproved ones) for admin
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = checkAuth(request);
+  if (authError) return authError;
+
   try {
     await connectDB();
 
@@ -46,6 +61,9 @@ export async function GET() {
 
 // PATCH - Update review approval status
 export async function PATCH(request: NextRequest) {
+  const authError = checkAuth(request);
+  if (authError) return authError;
+
   try {
     await connectDB();
 
@@ -88,6 +106,9 @@ export async function PATCH(request: NextRequest) {
 
 // DELETE - Delete a review
 export async function DELETE(request: NextRequest) {
+  const authError = checkAuth(request);
+  if (authError) return authError;
+
   try {
     await connectDB();
 
