@@ -20,7 +20,9 @@ interface Review {
   name: string
   email: string
   rating: number
-  comment: string
+  device: string
+  service: string
+  review: string
   approved: boolean
   createdAt: string
 }
@@ -145,7 +147,9 @@ export function ReviewsTable() {
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Rating</TableHead>
-                <TableHead>Comment</TableHead>
+                <TableHead>Device</TableHead>
+                <TableHead>Service</TableHead>
+                <TableHead className="max-w-md">Review Comment</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -154,7 +158,7 @@ export function ReviewsTable() {
             <TableBody>
               {reviews.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No reviews found
                   </TableCell>
                 </TableRow>
@@ -169,39 +173,57 @@ export function ReviewsTable() {
                         <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">{review.comment}</TableCell>
+                    <TableCell>{review.device}</TableCell>
+                    <TableCell>{review.service}</TableCell>
+                    <TableCell className="max-w-md">
+                      <div className="max-h-20 overflow-y-auto text-sm">
+                        {review.review}
+                      </div>
+                    </TableCell>
                     <TableCell>
-                      <Badge variant={review.approved ? "default" : "secondary"}>
-                        {review.approved ? "Approved" : "Pending"}
-                      </Badge>
+                      {review.approved ? (
+                        <Badge variant="default" className="bg-green-600">
+                          ✓ Approved
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="bg-orange-200 text-orange-800">
+                          ⏳ Pending
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       {new Date(review.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {!review.approved && (
+                        {!review.approved ? (
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="default"
+                            className="bg-green-600 hover:bg-green-700"
                             onClick={() => handleApproval(review._id, true)}
+                            title="Approve review"
                           >
-                            <Check className="h-4 w-4" />
+                            <Check className="h-4 w-4 mr-1" />
+                            Approve
                           </Button>
-                        )}
-                        {review.approved && (
+                        ) : (
                           <Button
                             size="sm"
                             variant="outline"
+                            className="border-orange-500 text-orange-600 hover:bg-orange-50"
                             onClick={() => handleApproval(review._id, false)}
+                            title="Reject review"
                           >
-                            <X className="h-4 w-4" />
+                            <X className="h-4 w-4 mr-1" />
+                            Reject
                           </Button>
                         )}
                         <Button
                           size="sm"
                           variant="destructive"
                           onClick={() => handleDelete(review._id)}
+                          title="Delete review"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

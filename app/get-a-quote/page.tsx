@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ import {
   SERVICE_METHODS,
   Brand,
   DeviceModel,
+  RepairItem,
 } from "@/lib/repairData";
 import { Tabs,TabsTrigger , TabsList,TabsContent} from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -147,12 +148,56 @@ export default function GetAQuotePage() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Backend data state
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [models, setModels] = useState<DeviceModel[]>([]);
+  const [repairs, setRepairs] = useState<RepairItem[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
+
+  // Fetch brands, models, and repairs from backend
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoadingData(true);
+      try {
+        // Fetch brands
+        const brandsRes = await fetch("/api/admin/brands?activeOnly=true");
+        if (brandsRes.ok) {
+          const brandsData = await brandsRes.json();
+          setBrands(brandsData.brands || []);
+        }
+
+        // Fetch models
+        const modelsRes = await fetch("/api/admin/models?activeOnly=true");
+        if (modelsRes.ok) {
+          const modelsData = await modelsRes.json();
+          setModels(modelsData.models || []);
+        }
+
+        // Fetch repairs
+        const repairsRes = await fetch("/api/admin/repairs?activeOnly=true");
+        if (repairsRes.ok) {
+          const repairsData = await repairsRes.json();
+          setRepairs(repairsData.repairs || []);
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast.error("Failed to load data", {
+          description: "Some data couldn't be loaded. Please refresh the page.",
+        });
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const getFilteredBrands = () => {
-    let brands = BRANDS;
+    let filteredBrands = brands;
 
     // Filter brands based on device type
     if (selectedDeviceType) {
-      brands = brands.filter((brand) =>
+      filteredBrands = filteredBrands.filter((brand) =>
         brand.deviceTypes.includes(
           selectedDeviceType as "smartphone" | "tablet" | "laptop"
         )
@@ -160,8 +205,8 @@ export default function GetAQuotePage() {
     }
 
     // Apply search filter
-    if (!searchQuery) return brands;
-    return brands.filter((brand) =>
+    if (!searchQuery) return filteredBrands;
+    return filteredBrands.filter((brand) =>
       brand.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
@@ -178,7 +223,7 @@ export default function GetAQuotePage() {
     const lowerQuery = query.toLowerCase();
 
     // Search brands
-    let matchedBrands = BRANDS.filter((brand) =>
+    let matchedBrands = brands.filter((brand) =>
       brand.name.toLowerCase().includes(lowerQuery)
     );
 
@@ -192,7 +237,7 @@ export default function GetAQuotePage() {
     }
 
     // Search models (by name and variants)
-    let matchedModels = DEVICE_MODELS.filter((model) => {
+    let matchedModels = models.filter((model) => {
       const nameMatch = model.name.toLowerCase().includes(lowerQuery);
       const variantMatch = model.variants.some((variant) =>
         variant.toLowerCase().includes(lowerQuery)
@@ -211,7 +256,7 @@ export default function GetAQuotePage() {
   };
 
   const handleSearchModelSelect = (model: DeviceModel) => {
-    const brand = BRANDS.find((b) => b.id === model.brandId);
+    const brand = brands.find((b) => b.id === model.brandId);
     if (brand) {
       setSelectedBrand(brand);
       setSelectedModel(model);
@@ -226,23 +271,23 @@ export default function GetAQuotePage() {
 
   const getFilteredModels = () => {
     if (!selectedBrand) return [];
-    let models = DEVICE_MODELS.filter(
+    let filteredModels = models.filter(
       (model) => model.brandId === selectedBrand.id
     );
 
     // Filter by device type if selected
     if (selectedDeviceType) {
-      models = models.filter(
+      filteredModels = filteredModels.filter(
         (model) => model.deviceType === selectedDeviceType
       );
     }
 
-    return models;
+    return filteredModels;
   };
 
   const getFilteredRepairs = () => {
-    if (!selectedDeviceType) return REPAIR_ITEMS;
-    return REPAIR_ITEMS.filter((repair) =>
+    if (!selectedDeviceType) return repairs;
+    return repairs.filter((repair) =>
       repair.deviceTypes.includes(selectedDeviceType)
     );
   };
@@ -315,7 +360,7 @@ export default function GetAQuotePage() {
   };
 
   const getRepairPrice = (repairId: string): number => {
-    const repair = REPAIR_ITEMS.find((r) => r.id === repairId);
+    const repair = repairs.find((r) => r.id === repairId);
     if (!repair) return 0;
     
     const quality = repairPartQuality[repairId];
@@ -344,7 +389,7 @@ export default function GetAQuotePage() {
     try {
       // Prepare repairs data with full details
       const repairsData = selectedRepairs.map((repairId) => {
-        const repair = REPAIR_ITEMS.find((r) => r.id === repairId);
+        const repair = repairs.find((r) => r.id === repairId);
         const quality = repairPartQuality[repairId];
         const qualityOptions = PART_QUALITY_OPTIONS[repairId as keyof typeof PART_QUALITY_OPTIONS];
         const selectedQualityOption = quality && qualityOptions 
@@ -518,8 +563,16 @@ export default function GetAQuotePage() {
         </div>
 
         <div className="container-padding-x container mx-auto py-12">
+          {/* Loading State */}
+          {isLoadingData && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+              <p className="text-muted-foreground">Loading devices and repairs...</p>
+            </div>
+          )}
+
           {/* Step 1: Select Device Type */}
-          {step === "device-type" && (
+          {!isLoadingData && step === "device-type" && (
             <div className="mx-auto max-w-4xl space-y-8">
               <div className="text-center">
                 <h1 className="heading-lg mb-4">
@@ -585,7 +638,7 @@ export default function GetAQuotePage() {
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                               {searchResults.models.slice(0, 6).map((model) => {
-                                const brand = BRANDS.find(
+                                const brand = brands.find(
                                   (b) => b.id === model.brandId
                                 );
                                 return (
@@ -912,7 +965,7 @@ export default function GetAQuotePage() {
           )}
 
           {/* Step 2: Select Brand */}
-          {step === "brand" && (
+          {!isLoadingData && step === "brand" && (
             <div className="mx-auto max-w-4xl space-y-8">
               <div className="flex items-center gap-4">
                 <Button variant="outline" size="icon" onClick={handleBackClick}>
@@ -976,7 +1029,7 @@ export default function GetAQuotePage() {
           )}
 
           {/* Step 3: Select Model */}
-          {step === "model" && selectedBrand && (
+          {!isLoadingData && step === "model" && selectedBrand && (
             <div className="mx-auto max-w-6xl space-y-8">
               <div className="flex items-center gap-4">
                 <Button variant="outline" size="icon" onClick={handleBackClick}>
@@ -1041,7 +1094,7 @@ export default function GetAQuotePage() {
           )}
 
           {/* Step 4: Select Color */}
-          {step === "color" && selectedModel && (
+          {!isLoadingData && step === "color" && selectedModel && (
             <div className="mx-auto max-w-6xl">
               <div className="grid lg:grid-cols-2 gap-8">
                 {/* Left side - Device preview */}
@@ -1162,7 +1215,7 @@ export default function GetAQuotePage() {
           )}
 
           {/* Step 5: Select Repairs */}
-          {step === "repair" && selectedModel && (
+          {!isLoadingData && step === "repair" && selectedModel && (
             <div className="mx-auto max-w-6xl space-y-8">
               <div className="flex items-center gap-4">
                 <Button variant="outline" size="icon" onClick={handleBackClick}>
@@ -1378,7 +1431,7 @@ export default function GetAQuotePage() {
           )}
 
           {/* Step 6: Finalize Order */}
-          {step === "finalize" && (
+          {!isLoadingData && step === "finalize" && (
             <div className="mx-auto max-w-6xl">
               <div className="flex items-center gap-4 mb-8">
                 <Button variant="outline" size="icon" onClick={handleBackClick}>
@@ -1682,7 +1735,7 @@ export default function GetAQuotePage() {
           {selectedRepairForQuality && PART_QUALITY_OPTIONS[selectedRepairForQuality as keyof typeof PART_QUALITY_OPTIONS] && (
             <div className="grid gap-4 py-4">
               {PART_QUALITY_OPTIONS[selectedRepairForQuality as keyof typeof PART_QUALITY_OPTIONS].map((option) => {
-                const repair = REPAIR_ITEMS.find((r) => r.id === selectedRepairForQuality);
+                const repair = repairs.find((r) => r.id === selectedRepairForQuality);
                 const price = repair ? Math.round(repair.price * option.priceMultiplier) : 0;
                 
                 return (

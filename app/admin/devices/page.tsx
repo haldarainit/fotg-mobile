@@ -8,14 +8,18 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { LogOut, Plus } from "lucide-react"
+import { LogOut, Smartphone, Tablet, Wrench } from "lucide-react"
+import { BrandsManagement } from "@/components/admin/brands-management"
+import { ModelsManagement } from "@/components/admin/models-management"
+import { RepairsManagement } from "@/components/admin/repairs-management"
 
 export default function Page() {
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [activeTab, setActiveTab] = useState("brands")
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -56,47 +60,46 @@ export default function Page() {
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
               <div className="flex justify-between items-center px-4 lg:px-6">
-                <h1 className="text-3xl font-bold">All Models/Devices</h1>
-                <div className="flex gap-2">
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Device
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleLogout}
-                    disabled={isLoggingOut}
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    {isLoggingOut ? "Logging out..." : "Logout"}
-                  </Button>
-                </div>
+                <h1 className="text-3xl font-bold">Device Management</h1>
+                <Button
+                  variant="outline"
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  {isLoggingOut ? "Logging out..." : "Logout"}
+                </Button>
               </div>
 
               <div className="px-4 lg:px-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Device Management</CardTitle>
-                    <CardDescription>
-                      Manage all mobile device models and their repair information
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col items-center justify-center py-12 text-center">
-                      <div className="text-6xl mb-4">📱</div>
-                      <h3 className="text-xl font-semibold mb-2">Device Management Coming Soon</h3>
-                      <p className="text-muted-foreground max-w-md">
-                        This section will allow you to add, edit, and manage all mobile device models 
-                        that you repair. You'll be able to set pricing, add device specifications, 
-                        and manage repair categories.
-                      </p>
-                      <Button className="mt-6" disabled>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Your First Device
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+                    <TabsTrigger value="brands" className="gap-2">
+                      <Smartphone className="h-4 w-4" />
+                      Brands
+                    </TabsTrigger>
+                    <TabsTrigger value="models" className="gap-2">
+                      <Tablet className="h-4 w-4" />
+                      Models
+                    </TabsTrigger>
+                    <TabsTrigger value="repairs" className="gap-2">
+                      <Wrench className="h-4 w-4" />
+                      Repairs
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="brands" className="mt-6">
+                    <BrandsManagement />
+                  </TabsContent>
+
+                  <TabsContent value="models" className="mt-6">
+                    <ModelsManagement />
+                  </TabsContent>
+
+                  <TabsContent value="repairs" className="mt-6">
+                    <RepairsManagement />
+                  </TabsContent>
+                </Tabs>
               </div>
             </div>
           </div>
