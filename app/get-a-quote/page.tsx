@@ -342,10 +342,19 @@ export default function GetAQuotePage() {
   };
 
   const getFilteredRepairs = () => {
-    if (!selectedDeviceType) return repairs;
-    return repairs.filter((repair) =>
-      repair.deviceTypes.includes(selectedDeviceType)
-    );
+    if (!selectedModel) return [];
+    
+    // Only show repairs that are specifically added to this model
+    const modelRepairIds = (selectedModel as any).repairs?.map((r: any) => {
+      // Handle both populated repairId object and direct repairId string
+      const rId = typeof r.repairId === "object" 
+        ? (r.repairId?._id ?? r.repairId?.id) 
+        : r.repairId;
+      return rId;
+    }) || [];
+    
+    // Filter repairs to only include those added to the model
+    return repairs.filter((repair) => modelRepairIds.includes(repair.id));
   };
 
   const handleBrandSelect = (brand: Brand) => {
@@ -382,7 +391,18 @@ export default function GetAQuotePage() {
 
   const handleRepairToggle = (repairId: string) => {
     const isSelected = selectedRepairs.includes(repairId);
-    const hasQualityOptions = PART_QUALITY_OPTIONS[repairId as keyof typeof PART_QUALITY_OPTIONS];
+    
+    // Check if this repair has quality options from the model's repair data
+    const modelRepair = (selectedModel as any)?.repairs?.find(
+      (r: any) => {
+        const rId = typeof r.repairId === "object" 
+          ? (r.repairId?._id ?? r.repairId?.id) 
+          : r.repairId;
+        return rId === repairId;
+      }
+    );
+    
+    const hasQualityOptions = modelRepair?.qualityPrices && modelRepair.qualityPrices.length > 1;
 
     if (!isSelected && hasQualityOptions) {
       // Show quality selection dialog when selecting a repair that has quality options
@@ -1310,8 +1330,6 @@ export default function GetAQuotePage() {
                   {displayedRepairs.map((repair) => {
                     const RepairIcon = getRepairIcon(repair.id);
                     const isSelected = selectedRepairs.includes(repair.id);
-                    const hasQualityOptions = PART_QUALITY_OPTIONS[repair.id as keyof typeof PART_QUALITY_OPTIONS];
-                    const selectedQuality = repairPartQuality[repair.id];
                     
                     // Get the model-specific pricing for this repair
                     const modelRepair = (selectedModel as any).repairs?.find(
@@ -1323,8 +1341,12 @@ export default function GetAQuotePage() {
                       }
                     );
                     
-                    // Use model-specific base price, fallback to repair.price
-                    const displayPrice = modelRepair?.basePrice ?? repair.price ?? 0;
+                    // Check if repair has quality options from backend
+                    const hasQualityOptions = modelRepair?.qualityPrices && modelRepair.qualityPrices.length > 1;
+                    const selectedQuality = repairPartQuality[repair.id];
+                    
+                    // Use model-specific base price
+                    const displayPrice = modelRepair?.basePrice ?? 0;
                     
                     return (
                       <Card
@@ -1827,7 +1849,12 @@ export default function GetAQuotePage() {
           {selectedRepairForQuality && selectedModel && (() => {
             // Find the model-specific repair pricing
             const modelRepair = (selectedModel as any).repairs?.find(
-              (r: any) => r.repairId?._id === selectedRepairForQuality || r.repairId === selectedRepairForQuality
+              (r: any) => {
+                const rId = typeof r.repairId === "object" 
+                  ? (r.repairId?._id ?? r.repairId?.id) 
+                  : r.repairId;
+                return rId === selectedRepairForQuality || String(rId) === String(selectedRepairForQuality);
+              }
             );
 
             if (!modelRepair || !modelRepair.qualityPrices || modelRepair.qualityPrices.length === 0) {
