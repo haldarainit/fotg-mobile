@@ -788,7 +788,7 @@ export function ModelsManagement() {
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{model.name}</TableCell>
-                  <TableCell>{model.brandId.name}</TableCell>
+                  <TableCell>{model.brandId?.name || 'N/A'}</TableCell>
                   <TableCell>
                     <Badge variant="outline">
                       {model.deviceType.charAt(0).toUpperCase() +

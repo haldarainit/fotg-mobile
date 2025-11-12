@@ -25,7 +25,7 @@ export default function RootLayout({
     <>
       <html lang="en" suppressHydrationWarning>
         <head />
-        <body className={`${onest.variable} relative antialiased`}>
+        <body className={`${onest.variable} relative antialiased`} suppressHydrationWarning>
           {children}
           <Toaster richColors />
         </body>
