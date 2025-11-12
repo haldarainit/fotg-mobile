@@ -107,6 +107,22 @@ const PART_QUALITY_OPTIONS = {
   ],
 };
 
+// Service method options
+const SERVICE_METHODS = [
+  {
+    id: "location",
+    title: "At Our Location",
+    subtitle: "Visit our repair center for instant service",
+    badge: "INSTANT",
+  },
+  {
+    id: "pickup",
+    title: "Pick-up & Delivery",
+    subtitle: "We'll collect and return your device",
+    badge: "CONVENIENT",
+  },
+];
+
 export default function GetAQuotePage() {
   const [step, setStep] = useState<
     "device-type" | "brand" | "model" | "color" | "repair" | "finalize"
@@ -1297,6 +1313,19 @@ export default function GetAQuotePage() {
                     const hasQualityOptions = PART_QUALITY_OPTIONS[repair.id as keyof typeof PART_QUALITY_OPTIONS];
                     const selectedQuality = repairPartQuality[repair.id];
                     
+                    // Get the model-specific pricing for this repair
+                    const modelRepair = (selectedModel as any).repairs?.find(
+                      (r: any) => {
+                        const rId = typeof r.repairId === "object" 
+                          ? (r.repairId?._id ?? r.repairId?.id) 
+                          : r.repairId;
+                        return rId === repair.id;
+                      }
+                    );
+                    
+                    // Use model-specific base price, fallback to repair.price
+                    const displayPrice = modelRepair?.basePrice ?? repair.price ?? 0;
+                    
                     return (
                       <Card
                         key={repair.id}
@@ -1339,13 +1368,13 @@ export default function GetAQuotePage() {
                           </p>
                           <div className="flex items-baseline gap-2">
                             <p className="text-2xl font-bold text-primary">
-                              {repair.price === 0 ? (
+                              {displayPrice === 0 ? (
                                 <span className="text-base">Price on request</span>
                               ) : (
-                                `$${isSelected ? getRepairPrice(repair.id) : repair.price}`
+                                `$${isSelected ? getRepairPrice(repair.id) : displayPrice}`
                               )}
                             </p>
-                            {hasQualityOptions && repair.price > 0 && (
+                            {hasQualityOptions && displayPrice > 0 && (
                               <span className="text-xs text-muted-foreground">
                                 starting at
                               </span>
@@ -1407,7 +1436,7 @@ export default function GetAQuotePage() {
                       Selected Services ({selectedRepairs.length})
                     </h4>
                     {selectedRepairs.map((repairId) => {
-                      const repair = REPAIR_ITEMS.find(
+                      const repair = repairs.find(
                         (r) => r.id === repairId
                       );
                       if (!repair) return null;
@@ -1712,11 +1741,13 @@ export default function GetAQuotePage() {
                         Services ({selectedRepairs.length})
                       </p>
                       {selectedRepairs.map((repairId) => {
-                        const repair = REPAIR_ITEMS.find(
+                        const repair = repairs.find(
                           (r) => r.id === repairId
                         );
                         if (!repair) return null;
                         const RepairIcon = getRepairIcon(repair.id);
+                        const quality = repairPartQuality[repairId];
+                        
                         return (
                           <div
                             key={repairId}
@@ -1728,12 +1759,17 @@ export default function GetAQuotePage() {
                                 <p className="text-sm font-medium">
                                   {repair.name}
                                 </p>
+                                {quality && (
+                                  <Badge variant="outline" className="text-xs mt-1">
+                                    {quality === "oem" ? "Original (OEM)" : "Premium Aftermarket"}
+                                  </Badge>
+                                )}
                                 <p className="text-xs text-muted-foreground">
                                   {repair.duration}
                                 </p>
                               </div>
                             </div>
-                            <p className="font-semibold">${repair.price}</p>
+                            <p className="font-semibold">${getRepairPrice(repairId)}</p>
                           </div>
                         );
                       })}
