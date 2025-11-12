@@ -56,19 +56,15 @@ export function RepairsManagement() {
 
   const [formData, setFormData] = useState({
     name: "",
-    repairId: "",
     icon: "",
     deviceTypes: [] as string[],
-    basePrice: 0,
     duration: "",
     description: "",
     hasQualityOptions: false,
     qualityOptions: [] as Array<{
       id: string;
       name: string;
-      duration: string;
       description: string;
-      priceMultiplier: number;
     }>,
     active: true,
   });
@@ -85,10 +81,11 @@ export function RepairsManagement() {
 
   const fetchRepairs = async () => {
     try {
-      const response = await fetch("/api/admin/repairs");
+      const response = await fetch("/api/admin/repairs", { credentials: "include" });
       if (response.ok) {
         const data = await response.json();
-        setRepairs(data.repairs || []);
+        console.log('Fetched repairs:', data);
+        setRepairs(data.data || data.repairs || []);
       }
     } catch (error) {
       console.error("Error fetching repairs:", error);
@@ -103,15 +100,21 @@ export function RepairsManagement() {
     setIsSubmitting(true);
 
     try {
-      const url = editingRepair
-        ? `/api/admin/repairs?id=${editingRepair._id}`
-        : "/api/admin/repairs";
+      const url = `/api/admin/repairs`;
+
+      const body = editingRepair
+        ? JSON.stringify({ ...formData, id: editingRepair._id })
+        : JSON.stringify(formData);
 
       const response = await fetch(url, {
         method: editingRepair ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: body,
+        credentials: "include",
       });
+
+      const responseData = await response.json();
+      console.log('Repair save response:', responseData);
 
       if (response.ok) {
         toast.success(
@@ -140,6 +143,7 @@ export function RepairsManagement() {
     try {
       const response = await fetch(`/api/admin/repairs?id=${repair._id}`, {
         method: "DELETE",
+        credentials: "include",
       });
 
       if (response.ok) {
@@ -158,14 +162,16 @@ export function RepairsManagement() {
     setEditingRepair(repair);
     setFormData({
       name: repair.name,
-      repairId: repair.repairId,
       icon: repair.icon,
       deviceTypes: repair.deviceTypes,
-      basePrice: repair.basePrice,
       duration: repair.duration,
       description: repair.description,
       hasQualityOptions: repair.hasQualityOptions,
-      qualityOptions: repair.qualityOptions || [],
+      qualityOptions: (repair.qualityOptions || []).map(q => ({
+        id: q.id,
+        name: q.name,
+        description: q.description,
+      })),
       active: repair.active,
     });
     setIsDialogOpen(true);
@@ -174,10 +180,8 @@ export function RepairsManagement() {
   const resetForm = () => {
     setFormData({
       name: "",
-      repairId: "",
       icon: "",
       deviceTypes: [],
-      basePrice: 0,
       duration: "",
       description: "",
       hasQualityOptions: false,
@@ -204,9 +208,7 @@ export function RepairsManagement() {
         {
           id: "",
           name: "",
-          duration: "15 minutes",
           description: "",
-          priceMultiplier: 1.0,
         },
       ],
     });
@@ -276,23 +278,6 @@ export function RepairsManagement() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                {/* Repair ID */}
-                <div className="space-y-2">
-                  <Label htmlFor="repairId">Repair ID *</Label>
-                  <Input
-                    id="repairId"
-                    value={formData.repairId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, repairId: e.target.value })
-                    }
-                    placeholder="e.g., screen, battery"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Unique identifier (lowercase, no spaces)
-                  </p>
-                </div>
-
                 {/* Icon */}
                 <div className="space-y-2">
                   <Label htmlFor="icon">Icon Name</Label>
@@ -308,31 +293,10 @@ export function RepairsManagement() {
                     Lucide icon name
                   </p>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                {/* Base Price */}
-                <div className="space-y-2">
-                  <Label htmlFor="basePrice">Base Price ($) *</Label>
-                  <Input
-                    id="basePrice"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.basePrice}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        basePrice: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                    required
-                  />
-                </div>
 
                 {/* Duration */}
                 <div className="space-y-2">
-                  <Label htmlFor="duration">Duration *</Label>
+                  <Label htmlFor="duration">Estimated Duration *</Label>
                   <Input
                     id="duration"
                     value={formData.duration}
@@ -447,43 +411,6 @@ export function RepairsManagement() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Duration</Label>
-                              <Input
-                                value={option.duration}
-                                onChange={(e) =>
-                                  updateQualityOption(
-                                    index,
-                                    "duration",
-                                    e.target.value
-                                  )
-                                }
-                                placeholder="15 minutes"
-                                className="text-sm"
-                              />
-                            </div>
-
-                            <div className="space-y-1">
-                              <Label className="text-xs">Price Multiplier</Label>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.1"
-                                value={option.priceMultiplier}
-                                onChange={(e) =>
-                                  updateQualityOption(
-                                    index,
-                                    "priceMultiplier",
-                                    parseFloat(e.target.value) || 1.0
-                                  )
-                                }
-                                placeholder="1.0"
-                                className="text-sm"
-                              />
-                            </div>
-                          </div>
-
                           <div className="space-y-1">
                             <Label className="text-xs">Description</Label>
                             <Textarea
@@ -573,7 +500,6 @@ export function RepairsManagement() {
             <TableRow>
               <TableHead>Service Name</TableHead>
               <TableHead>Device Types</TableHead>
-              <TableHead>Base Price</TableHead>
               <TableHead>Duration</TableHead>
               <TableHead>Quality Options</TableHead>
               <TableHead>Status</TableHead>
@@ -583,7 +509,7 @@ export function RepairsManagement() {
           <TableBody>
             {repairs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   <p className="text-muted-foreground">
                     No repair services yet. Add your first service!
                   </p>
@@ -602,7 +528,6 @@ export function RepairsManagement() {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell>${repair.basePrice}</TableCell>
                   <TableCell>{repair.duration}</TableCell>
                   <TableCell>
                     {repair.hasQualityOptions ? (

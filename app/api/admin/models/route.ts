@@ -40,12 +40,16 @@ export async function GET(request: NextRequest) {
 
     const models = await DeviceModel.find(query)
       .populate("brandId", "name logo")
+      .populate({ path: "repairs.repairId", select: "name basePrice hasQualityOptions qualityOptions" })
       .sort({ name: 1 })
       .lean();
+
+    console.log(`Fetched ${models.length} models`);
 
     return NextResponse.json({
       success: true,
       data: models,
+      models: models, // For backwards compatibility
     });
   } catch (error) {
     console.error("Error fetching models:", error);
@@ -65,23 +69,56 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
-    const { name, brandId, deviceType, image, imagePublicId, variants, colors } = body;
+    console.log("Received model data:", body);
+    
+    const { name, brandId, deviceType, image, imagePublicId, variants, colors, active } = body;
 
-    if (!name || !brandId || !deviceType || !image || !imagePublicId) {
+    // Validate required fields
+    if (!name || !name.trim()) {
       return NextResponse.json(
-        { success: false, error: "All required fields must be provided" },
+        { success: false, error: "Model name is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!brandId) {
+      return NextResponse.json(
+        { success: false, error: "Brand is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!deviceType) {
+      return NextResponse.json(
+        { success: false, error: "Device type is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!image || !image.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Model image is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!imagePublicId || !imagePublicId.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Image public ID is required" },
         { status: 400 }
       );
     }
 
     const model = await DeviceModel.create({
-      name,
+      name: name.trim(),
       brandId,
       deviceType,
       image,
       imagePublicId,
       variants: variants || [],
       colors: colors || [],
+      repairs: body.repairs || [],
+      active: active !== undefined ? active : true,
     });
 
     const populatedModel = await DeviceModel.findById(model._id)
@@ -110,7 +147,7 @@ export async function PATCH(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
-    const { id, name, image, imagePublicId, variants, colors, active } = body;
+  const { id, name, image, imagePublicId, variants, colors, repairs, active } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -120,12 +157,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updateData: any = {};
-    if (name !== undefined) updateData.name = name;
-    if (image !== undefined) updateData.image = image;
-    if (imagePublicId !== undefined) updateData.imagePublicId = imagePublicId;
-    if (variants !== undefined) updateData.variants = variants;
-    if (colors !== undefined) updateData.colors = colors;
-    if (active !== undefined) updateData.active = active;
+  if (name !== undefined) updateData.name = name;
+  if (image !== undefined) updateData.image = image;
+  if (imagePublicId !== undefined) updateData.imagePublicId = imagePublicId;
+  if (variants !== undefined) updateData.variants = variants;
+  if (colors !== undefined) updateData.colors = colors;
+  if (repairs !== undefined) updateData.repairs = repairs;
+  if (active !== undefined) updateData.active = active;
 
     const model = await DeviceModel.findByIdAndUpdate(id, updateData, {
       new: true,

@@ -38,6 +38,24 @@ const DeviceModelSchema = new mongoose.Schema(
       },
     ],
     colors: [ColorSchema],
+    // Model-specific repair pricing: associate repair services with this model
+    repairs: [
+      {
+        repairId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "RepairItem",
+        },
+        basePrice: { type: Number, default: 0 },
+        // Prices per quality option (if repair defines quality options)
+        qualityPrices: [
+          {
+            id: { type: String },
+            name: { type: String },
+            price: { type: Number, default: 0 },
+          },
+        ],
+      },
+    ],
     active: {
       type: Boolean,
       default: true,

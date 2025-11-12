@@ -48,6 +48,11 @@ export async function POST(request: NextRequest) {
       resource_type: "auto",
     });
 
+    console.log("Cloudinary upload successful:", {
+      url: result.secure_url,
+      publicId: result.public_id,
+    });
+
     return NextResponse.json({
       success: true,
       data: {

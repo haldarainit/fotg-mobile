@@ -3,9 +3,7 @@ import mongoose from "mongoose";
 const PartQualityOptionSchema = new mongoose.Schema({
   id: { type: String, required: true },
   name: { type: String, required: true },
-  duration: { type: String, required: true },
   description: { type: String, required: true },
-  priceMultiplier: { type: Number, required: true, default: 1.0 },
 });
 
 const RepairItemSchema = new mongoose.Schema(
@@ -15,10 +13,12 @@ const RepairItemSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // Optional machine-friendly identifier. If not provided, auto-generate one.
     repairId: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
+      default: () => `repair_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`,
     },
     icon: {
       type: String,
@@ -30,11 +30,6 @@ const RepairItemSchema = new mongoose.Schema(
         enum: ["smartphone", "tablet", "laptop"],
       },
     ],
-    basePrice: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
     duration: {
       type: String,
       required: true,

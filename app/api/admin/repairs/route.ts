@@ -35,9 +35,12 @@ export async function GET(request: NextRequest) {
 
     const repairs = await RepairItem.find(query).sort({ name: 1 }).lean();
 
+    console.log(`Fetched ${repairs.length} repair items`);
+
     return NextResponse.json({
       success: true,
       data: repairs,
+      repairs: repairs, // For backwards compatibility
     });
   } catch (error) {
     console.error("Error fetching repair items:", error);
@@ -57,31 +60,50 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
+    console.log('Received repair payload:', body);
     const { 
       name, 
-      repairId, 
       icon, 
       deviceTypes, 
-      basePrice, 
       duration,
+      description,
       hasQualityOptions,
       qualityOptions 
     } = body;
 
-    if (!name || !repairId || !icon || !deviceTypes || deviceTypes.length === 0 || !duration) {
+    // Basic validation
+    if (!name || !name.trim()) {
       return NextResponse.json(
-        { success: false, error: "All required fields must be provided" },
+        { success: false, error: "Service name is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!icon) {
+      // icon is optional, but log a notice
+      console.warn('No icon provided for repair', name);
+    }
+
+    if (!deviceTypes || !Array.isArray(deviceTypes) || deviceTypes.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "At least one device type is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!duration || !duration.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Duration is required" },
         { status: 400 }
       );
     }
 
     const repair = await RepairItem.create({
-      name,
-      repairId,
-      icon,
+      name: name.trim(),
+      icon: icon || "",
       deviceTypes,
-      basePrice: basePrice || 0,
       duration,
+      description: description || "",
       hasQualityOptions: hasQualityOptions || false,
       qualityOptions: qualityOptions || [],
     });
@@ -114,8 +136,8 @@ export async function PATCH(request: NextRequest) {
       name, 
       icon, 
       deviceTypes, 
-      basePrice, 
       duration,
+      description,
       hasQualityOptions,
       qualityOptions,
       active 
@@ -132,8 +154,8 @@ export async function PATCH(request: NextRequest) {
     if (name !== undefined) updateData.name = name;
     if (icon !== undefined) updateData.icon = icon;
     if (deviceTypes !== undefined) updateData.deviceTypes = deviceTypes;
-    if (basePrice !== undefined) updateData.basePrice = basePrice;
     if (duration !== undefined) updateData.duration = duration;
+    if (description !== undefined) updateData.description = description;
     if (hasQualityOptions !== undefined) updateData.hasQualityOptions = hasQualityOptions;
     if (qualityOptions !== undefined) updateData.qualityOptions = qualityOptions;
     if (active !== undefined) updateData.active = active;

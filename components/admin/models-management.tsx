@@ -59,6 +59,7 @@ interface DeviceModel {
 export function ModelsManagement() {
   const [models, setModels] = useState<DeviceModel[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [repairsList, setRepairsList] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,6 +73,11 @@ export function ModelsManagement() {
     deviceType: "",
     variants: [""],
     colors: [{ id: "", name: "", hex: "#000000" }],
+    modelRepairs: [] as Array<{
+      repairId: string;
+      basePrice: number;
+      qualityPrices?: Array<{ id: string; name: string; price: number }>;
+    }>,
     active: true,
   });
 
@@ -83,19 +89,27 @@ export function ModelsManagement() {
 
   const fetchData = async () => {
     try {
-      const [modelsRes, brandsRes] = await Promise.all([
-        fetch("/api/admin/models"),
-        fetch("/api/admin/brands?activeOnly=true"),
-      ]);
+      const [modelsRes, brandsRes, repairsRes] = await Promise.all([
+          fetch("/api/admin/models"),
+          fetch("/api/admin/brands?activeOnly=true"),
+          fetch("/api/admin/repairs"),
+        ]);
 
       if (modelsRes.ok) {
         const data = await modelsRes.json();
-        setModels(data.models || []);
+        console.log("Fetched models:", data);
+        setModels(data.data || data.models || []);
       }
 
       if (brandsRes.ok) {
         const data = await brandsRes.json();
-        setBrands(data.brands || []);
+        console.log("Fetched brands:", data);
+        setBrands(data.data || data.brands || []);
+      }
+      if (repairsRes && repairsRes.ok) {
+        const data = await repairsRes.json();
+        console.log("Fetched repairs:", data);
+        setRepairsList(data.data || data.repairs || []);
       }
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -128,14 +142,20 @@ export function ModelsManagement() {
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formDataUpload,
+        credentials: "include", // Include cookies for authentication
       });
 
       if (response.ok) {
         const data = await response.json();
-        return { url: data.url, publicId: data.publicId };
+        return { url: data.data.url, publicId: data.data.publicId };
+      } else {
+        const errorData = await response.json();
+        console.error("Upload failed:", errorData.error);
+        return null;
       }
     } catch (error) {
       console.error("Error uploading image:", error);
+      return null;
     }
     return null;
   };
@@ -161,6 +181,7 @@ export function ModelsManagement() {
               method: "DELETE",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ publicId: editingModel.imagePublicId }),
+              credentials: "include",
             });
           }
         } else {
@@ -182,22 +203,37 @@ export function ModelsManagement() {
       const cleanedVariants = formData.variants.filter((v) => v.trim());
 
       const payload = {
-        ...formData,
+        name: formData.name,
+        brandId: formData.brandId,
+        deviceType: formData.deviceType,
         image: imageUrl,
         imagePublicId: imagePublicId,
-        colors: cleanedColors,
         variants: cleanedVariants,
+        colors: cleanedColors,
+        // include model-specific repairs (associations + prices)
+        repairs: formData.modelRepairs || [],
+        active: formData.active,
       };
 
+      console.log("Submitting model payload:", payload);
+
       const url = editingModel
-        ? `/api/admin/models?id=${editingModel._id}`
+        ? `/api/admin/models`
         : "/api/admin/models";
+
+      const body = editingModel 
+        ? JSON.stringify({ ...payload, id: editingModel._id })
+        : JSON.stringify(payload);
 
       const response = await fetch(url, {
         method: editingModel ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: body,
+        credentials: "include",
       });
+
+      const responseData = await response.json();
+      console.log("Model response:", responseData);
 
       if (response.ok) {
         toast.success(
@@ -209,8 +245,8 @@ export function ModelsManagement() {
         resetForm();
         fetchData();
       } else {
-        const data = await response.json();
-        toast.error(data.error || "Failed to save model");
+        console.error("Error response:", responseData);
+        toast.error(responseData.error || "Failed to save model");
       }
     } catch (error) {
       console.error("Error saving model:", error);
@@ -230,11 +266,13 @@ export function ModelsManagement() {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ publicId: model.imagePublicId }),
+          credentials: "include",
         });
       }
 
       const response = await fetch(`/api/admin/models?id=${model._id}`, {
         method: "DELETE",
+        credentials: "include",
       });
 
       if (response.ok) {
@@ -260,6 +298,14 @@ export function ModelsManagement() {
         model.colors.length > 0
           ? model.colors
           : [{ id: "", name: "", hex: "#000000" }],
+      // map existing model repairs to form structure
+      modelRepairs: (model as any).repairs
+        ? (model as any).repairs.map((r: any) => ({
+            repairId: r.repairId?._id || r.repairId,
+            basePrice: r.basePrice || 0,
+            qualityPrices: r.qualityPrices || [],
+          }))
+        : [],
       active: model.active,
     });
     setImagePreview(model.image);
@@ -273,6 +319,7 @@ export function ModelsManagement() {
       deviceType: "",
       variants: [""],
       colors: [{ id: "", name: "", hex: "#000000" }],
+      modelRepairs: [],
       active: true,
     });
     setEditingModel(null);
@@ -319,6 +366,48 @@ export function ModelsManagement() {
     const newColors = [...formData.colors];
     newColors[index][field] = value;
     setFormData({ ...formData, colors: newColors });
+  };
+
+  // Model-repair association helpers
+  const addModelRepair = () => {
+    setFormData({
+      ...formData,
+      modelRepairs: [
+        ...formData.modelRepairs,
+        { repairId: "", basePrice: 0, qualityPrices: [] },
+      ],
+    });
+  };
+
+  const removeModelRepair = (index: number) => {
+    setFormData({
+      ...formData,
+      modelRepairs: formData.modelRepairs.filter((_, i) => i !== index),
+    });
+  };
+
+  const updateModelRepairField = (
+    index: number,
+    field: string,
+    value: any
+  ) => {
+    const newList = [...formData.modelRepairs];
+    (newList[index] as any)[field] = value;
+    setFormData({ ...formData, modelRepairs: newList });
+  };
+
+  const updateModelRepairQualityPrice = (
+    modelRepairIndex: number,
+    qualityIndex: number,
+    price: number
+  ) => {
+    const newList = [...formData.modelRepairs];
+    if (!newList[modelRepairIndex].qualityPrices) newList[modelRepairIndex].qualityPrices = [];
+    newList[modelRepairIndex].qualityPrices![qualityIndex] = {
+      ...newList[modelRepairIndex].qualityPrices![qualityIndex],
+      price,
+    };
+    setFormData({ ...formData, modelRepairs: newList });
   };
 
   if (isLoading) {
@@ -526,6 +615,79 @@ export function ModelsManagement() {
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Color
+                </Button>
+              </div>
+
+              {/* Model-specific Repairs */}
+              <div className="space-y-2">
+                <Label>Repairs / Services for this Model</Label>
+                <p className="text-xs text-muted-foreground">Assign repair services to this model and set model-specific prices. You can also set prices per quality option if available.</p>
+                {formData.modelRepairs.map((mr, idx) => {
+                  const selectedRepair = repairsList.find((r) => r._id === mr.repairId) || repairsList.find((r) => r.repairId === mr.repairId);
+                  return (
+                    <Card key={idx} className="p-3">
+                      <div className="flex gap-2 items-center">
+                        <Select
+                          value={mr.repairId || ""}
+                          onValueChange={(val) => updateModelRepairField(idx, "repairId", val)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select repair" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {repairsList.map((r) => (
+                              <SelectItem key={r._id} value={r._id}>
+                                {r.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={mr.basePrice}
+                          onChange={(e) => updateModelRepairField(idx, "basePrice", parseFloat(e.target.value) || 0)}
+                          placeholder="Model price"
+                          className="w-40"
+                        />
+
+                        <Button type="button" variant="destructive" size="icon" onClick={() => removeModelRepair(idx)}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      {/* Quality prices override */}
+                      {selectedRepair && selectedRepair.hasQualityOptions && selectedRepair.qualityOptions && (
+                        <div className="mt-3 grid grid-cols-1 gap-2">
+                          <Label className="text-sm">Quality option prices</Label>
+                          {selectedRepair.qualityOptions.map((q: any, qi: number) => (
+                            <div key={q.id} className="flex gap-2 items-center">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium">{q.name}</p>
+                                <p className="text-xs text-muted-foreground">{q.description}</p>
+                              </div>
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={(mr.qualityPrices && mr.qualityPrices[qi] && mr.qualityPrices[qi].price) || ""}
+                                onChange={(e) => updateModelRepairQualityPrice(idx, qi, parseFloat(e.target.value) || 0)}
+                                placeholder="Price"
+                                className="w-36"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Card>
+                  );
+                })}
+
+                <Button type="button" variant="outline" size="sm" onClick={addModelRepair}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Repair to Model
                 </Button>
               </div>
 

@@ -35,9 +35,12 @@ export async function GET(request: NextRequest) {
 
     const brands = await Brand.find(query).sort({ name: 1 }).lean();
 
+    console.log(`Fetched ${brands.length} brands`);
+
     return NextResponse.json({
       success: true,
       data: brands,
+      brands: brands, // For backwards compatibility
     });
   } catch (error) {
     console.error("Error fetching brands:", error);
@@ -57,21 +60,48 @@ export async function POST(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
-    const { name, logo, logoPublicId, deviceTypes } = body;
+    console.log("Received brand data:", body);
+    
+    const { name, logo, logoPublicId, deviceTypes, active } = body;
 
-    if (!name || !logo || !logoPublicId || !deviceTypes || deviceTypes.length === 0) {
+    // Validate required fields
+    if (!name || !name.trim()) {
       return NextResponse.json(
-        { success: false, error: "All fields are required" },
+        { success: false, error: "Brand name is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!logo || !logo.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Brand logo is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!logoPublicId || !logoPublicId.trim()) {
+      return NextResponse.json(
+        { success: false, error: "Logo public ID is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!deviceTypes || !Array.isArray(deviceTypes) || deviceTypes.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "At least one device type is required" },
         { status: 400 }
       );
     }
 
     const brand = await Brand.create({
-      name,
+      name: name.trim(),
       logo,
       logoPublicId,
       deviceTypes,
+      active: active !== undefined ? active : true,
     });
+
+    console.log("Brand created successfully:", brand);
 
     return NextResponse.json({
       success: true,

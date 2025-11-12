@@ -66,7 +66,8 @@ export function BrandsManagement() {
       const response = await fetch("/api/admin/brands");
       if (response.ok) {
         const data = await response.json();
-        setBrands(data.brands || []);
+        console.log("Fetched brands:", data);
+        setBrands(data.data || data.brands || []);
       }
     } catch (error) {
       console.error("Error fetching brands:", error);
@@ -99,14 +100,20 @@ export function BrandsManagement() {
       const response = await fetch("/api/upload", {
         method: "POST",
         body: formData,
+        credentials: "include", // Include cookies for authentication
       });
 
       if (response.ok) {
         const data = await response.json();
-        return { url: data.url, publicId: data.publicId };
+        return { url: data.data.url, publicId: data.data.publicId };
+      } else {
+        const errorData = await response.json();
+        console.error("Upload failed:", errorData.error);
+        return null;
       }
     } catch (error) {
       console.error("Error uploading logo:", error);
+      return null;
     }
     return null;
   };
@@ -132,6 +139,7 @@ export function BrandsManagement() {
               method: "DELETE",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ publicId: editingBrand.logoPublicId }),
+              credentials: "include", // Include cookies for authentication
             });
           }
         } else {
@@ -142,20 +150,32 @@ export function BrandsManagement() {
       }
 
       const payload = {
-        ...formData,
+        name: formData.name,
         logo: logoUrl,
         logoPublicId: logoPublicId,
+        deviceTypes: formData.deviceTypes,
+        active: formData.active,
       };
 
+      console.log("Submitting brand payload:", payload);
+
       const url = editingBrand
-        ? `/api/admin/brands?id=${editingBrand._id}`
+        ? `/api/admin/brands`
         : "/api/admin/brands";
+
+      const body = editingBrand 
+        ? JSON.stringify({ ...payload, id: editingBrand._id })
+        : JSON.stringify(payload);
 
       const response = await fetch(url, {
         method: editingBrand ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: body,
+        credentials: "include",
       });
+
+      const responseData = await response.json();
+      console.log("Brand response:", responseData);
 
       if (response.ok) {
         toast.success(
@@ -165,8 +185,8 @@ export function BrandsManagement() {
         resetForm();
         fetchBrands();
       } else {
-        const data = await response.json();
-        toast.error(data.error || "Failed to save brand");
+        console.error("Error response:", responseData);
+        toast.error(responseData.error || "Failed to save brand");
       }
     } catch (error) {
       console.error("Error saving brand:", error);
@@ -284,7 +304,7 @@ export function BrandsManagement() {
 
               {/* Logo Upload */}
               <div className="space-y-2">
-                <Label>Brand Logo</Label>
+                <Label>Brand Logo *</Label>
                 <div className="flex items-center gap-4">
                   {logoPreview && (
                     <div className="relative w-20 h-20 border rounded-lg overflow-hidden">
@@ -311,12 +331,18 @@ export function BrandsManagement() {
                       type="file"
                       accept="image/*"
                       onChange={handleLogoChange}
+                      required={!editingBrand && !logoPreview}
                     />
                     <p className="text-xs text-muted-foreground mt-1">
                       Upload brand logo (PNG, JPG, SVG recommended)
                     </p>
                   </div>
                 </div>
+                {!editingBrand && !logoFile && !logoPreview && (
+                  <p className="text-xs text-red-500">
+                    Brand logo is required
+                  </p>
+                )}
               </div>
 
               {/* Device Types */}
@@ -376,7 +402,11 @@ export function BrandsManagement() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting || formData.deviceTypes.length === 0}
+                  disabled={
+                    isSubmitting ||
+                    formData.deviceTypes.length === 0 ||
+                    (!editingBrand && !logoFile && !logoPreview)
+                  }
                 >
                   {isSubmitting ? (
                     <>
