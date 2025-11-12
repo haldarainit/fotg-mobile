@@ -43,15 +43,7 @@ import {
 import { LpNavbar1 } from "@/components/pro-blocks/landing-page/lp-navbars/lp-navbar-1";
 import { Footer1 } from "@/components/pro-blocks/landing-page/footers/footer-1";
 import Image from "next/image";
-import {
-  BRANDS,
-  DEVICE_MODELS,
-  REPAIR_ITEMS,
-  SERVICE_METHODS,
-  Brand,
-  DeviceModel,
-  RepairItem,
-} from "@/lib/repairData";
+import { Brand, DeviceModel, RepairItem } from "@/lib/repairData";
 import { Tabs,TabsTrigger , TabsList,TabsContent} from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 
@@ -163,21 +155,69 @@ export default function GetAQuotePage() {
         const brandsRes = await fetch("/api/admin/brands?activeOnly=true");
         if (brandsRes.ok) {
           const brandsData = await brandsRes.json();
-          setBrands(brandsData.brands || []);
+          console.log("Fetched brands for quote:", brandsData);
+          // Normalize backend brand shape to frontend Brand type
+          const rawBrands = brandsData.data || brandsData.brands || [];
+          const normalizedBrands: Brand[] = rawBrands.map((b: any) => ({
+            id: b._id ?? b.id ?? String(b._id ?? b.id ?? ""),
+            name: b.name || b.title || "",
+            logo: b.logo || b.logoUrl || b.logoPublicId || "",
+            deviceTypes: b.deviceTypes || b.deviceTypes || [],
+          }));
+          setBrands(normalizedBrands);
         }
 
-        // Fetch models
+        // Fetch models (with populated repairs and pricing)
         const modelsRes = await fetch("/api/admin/models?activeOnly=true");
         if (modelsRes.ok) {
           const modelsData = await modelsRes.json();
-          setModels(modelsData.models || []);
+          console.log("Fetched models for quote:", modelsData);
+          const rawModels = modelsData.data || modelsData.models || [];
+          const normalizedModels: DeviceModel[] = rawModels.map((m: any) => {
+            // Handle brandId - it can be an ObjectId string or a populated object
+            let extractedBrandId = "";
+            if (typeof m.brandId === "string") {
+              extractedBrandId = m.brandId;
+            } else if (m.brandId && typeof m.brandId === "object") {
+              // brandId is populated with brand object
+              extractedBrandId = m.brandId._id ?? m.brandId.id ?? String(m.brandId._id);
+            }
+
+            return {
+              id: m._id ?? m.id ?? String(m._id ?? m.id ?? ""),
+              name: m.name || m.title || "",
+              image: m.image || m.images?.[0] || "",
+              variants: m.variants || m.modelCodes || [],
+              brandId: extractedBrandId,
+              deviceType: m.deviceType || m.type || "smartphone",
+              colors: m.colors || m.colorOptions || [],
+              // Pass through the raw repairs data for pricing
+              repairs: m.repairs || [],
+            } as any;
+          });
+          setModels(normalizedModels);
         }
 
         // Fetch repairs
         const repairsRes = await fetch("/api/admin/repairs?activeOnly=true");
         if (repairsRes.ok) {
           const repairsData = await repairsRes.json();
-          setRepairs(repairsData.repairs || []);
+          console.log("Fetched repairs for quote:", repairsData);
+          const rawRepairs = repairsData.data || repairsData.repairs || [];
+          const normalizedRepairs: RepairItem[] = rawRepairs.map((r: any) => ({
+            id: r._id ?? r.id ?? String(r._id ?? r.id ?? ""),
+            name: r.name || r.title || "",
+            price: r.price ?? r.basePrice ?? 0,
+            duration: r.duration || r.estimatedTime || "",
+            description: r.description || r.desc || "",
+            badge: r.badge || r.label,
+            icon: r.icon || r.iconName || "",
+            deviceTypes: r.deviceTypes || r.applicableDeviceTypes || [],
+            // Pass through quality options from backend
+            hasQualityOptions: r.hasQualityOptions || false,
+            qualityOptions: r.qualityOptions || [],
+          } as any));
+          setRepairs(normalizedRepairs);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -360,20 +400,36 @@ export default function GetAQuotePage() {
   };
 
   const getRepairPrice = (repairId: string): number => {
-    const repair = repairs.find((r) => r.id === repairId);
-    if (!repair) return 0;
-    
+    if (!selectedModel) return 0;
+
+    // Find the model-specific repair pricing
+    const modelRepair = (selectedModel as any).repairs?.find(
+      (r: any) => {
+        // Handle both populated repairId object and direct repairId string
+        const rId = typeof r.repairId === "object" 
+          ? (r.repairId?._id ?? r.repairId?.id) 
+          : r.repairId;
+        return rId === repairId || r.repairId === repairId;
+      }
+    );
+
+    if (!modelRepair) {
+      console.warn(`No pricing found for repair ${repairId} on model ${selectedModel.name}`);
+      return 0;
+    }
+
     const quality = repairPartQuality[repairId];
-    const qualityOptions = PART_QUALITY_OPTIONS[repairId as keyof typeof PART_QUALITY_OPTIONS];
     
-    if (quality && qualityOptions) {
-      const selectedQuality = qualityOptions.find((q) => q.id === quality);
-      if (selectedQuality) {
-        return Math.round(repair.price * selectedQuality.priceMultiplier);
+    // If quality is selected and quality prices are available
+    if (quality && modelRepair.qualityPrices && modelRepair.qualityPrices.length > 0) {
+      const qualityPrice = modelRepair.qualityPrices.find((qp: any) => qp.id === quality);
+      if (qualityPrice) {
+        return qualityPrice.price || 0;
       }
     }
     
-    return repair.price;
+    // Return base price for this model
+    return modelRepair.basePrice || 0;
   };
 
   const calculateTotal = () => {
@@ -1732,41 +1788,59 @@ export default function GetAQuotePage() {
             </DialogDescription>
           </DialogHeader>
           
-          {selectedRepairForQuality && PART_QUALITY_OPTIONS[selectedRepairForQuality as keyof typeof PART_QUALITY_OPTIONS] && (
-            <div className="grid gap-4 py-4">
-              {PART_QUALITY_OPTIONS[selectedRepairForQuality as keyof typeof PART_QUALITY_OPTIONS].map((option) => {
-                const repair = repairs.find((r) => r.id === selectedRepairForQuality);
-                const price = repair ? Math.round(repair.price * option.priceMultiplier) : 0;
-                
-                return (
-                  <Card
-                    key={option.id}
-                    className="cursor-pointer transition-all hover:border-primary"
-                    onClick={() => handlePartQualitySelect(option.id as "oem" | "aftermarket")}
-                  >
-                    <div className="p-6">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h3 className="font-bold text-xl mb-2">{option.name}</h3>
-                          <p className="text-sm text-muted-foreground mb-1">
-                            {option.duration}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {option.description}
-                          </p>
-                        </div>
-                        <div className="text-right ml-4">
-                          <p className="text-3xl font-bold text-primary">
-                            ${price}
-                          </p>
+          {selectedRepairForQuality && selectedModel && (() => {
+            // Find the model-specific repair pricing
+            const modelRepair = (selectedModel as any).repairs?.find(
+              (r: any) => r.repairId?._id === selectedRepairForQuality || r.repairId === selectedRepairForQuality
+            );
+
+            if (!modelRepair || !modelRepair.qualityPrices || modelRepair.qualityPrices.length === 0) {
+              return (
+                <div className="py-4 text-center text-muted-foreground">
+                  No quality options available for this repair.
+                </div>
+              );
+            }
+
+            // Get quality option details from the repair
+            const repairData = repairs.find((r) => r.id === selectedRepairForQuality);
+            const qualityOptions = repairData?.qualityOptions || [];
+
+            return (
+              <div className="grid gap-4 py-4">
+                {modelRepair.qualityPrices.map((qualityPrice: any) => {
+                  // Find matching quality option details
+                  const qualityDetails = qualityOptions.find((q: any) => q.id === qualityPrice.id);
+                  
+                  return (
+                    <Card
+                      key={qualityPrice.id}
+                      className="cursor-pointer transition-all hover:border-primary"
+                      onClick={() => handlePartQualitySelect(qualityPrice.id as "oem" | "aftermarket")}
+                    >
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h3 className="font-bold text-xl mb-2">{qualityPrice.name}</h3>
+                            {qualityDetails?.description && (
+                              <p className="text-sm text-muted-foreground">
+                                {qualityDetails.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right ml-4">
+                            <p className="text-3xl font-bold text-primary">
+                              ${qualityPrice.price}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 

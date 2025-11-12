@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import DeviceModel from "@/models/DeviceModel";
+import RepairItem from "@/models/RepairItem";
+import Brand from "@/models/Brand";
 
 // Middleware to check authentication
 function checkAuth(request: NextRequest) {
