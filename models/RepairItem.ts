@@ -50,8 +50,11 @@ const RepairItemSchema = new mongoose.Schema(
   }
 );
 
-const RepairItem =
-  mongoose.models.RepairItem ||
-  mongoose.model("RepairItem", RepairItemSchema);
+// Clear any cached model to ensure schema updates are applied
+if (mongoose.models.RepairItem) {
+  delete mongoose.models.RepairItem;
+}
+
+const RepairItem = mongoose.model("RepairItem", RepairItemSchema);
 
 export default RepairItem;
