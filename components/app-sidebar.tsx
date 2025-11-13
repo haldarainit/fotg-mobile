@@ -5,7 +5,7 @@ import {
   IconDeviceMobile,
   IconMessageCircle,
   IconStar,
-  IconInnerShadowTop,
+  IconCalendar,
   IconHome,
   IconSettings,
 } from "@tabler/icons-react"
@@ -34,6 +34,11 @@ const data = {
       url: "/admin/devices",
       icon: IconDeviceMobile,
     },
+      {
+        title: "Bookings",
+        url: "/admin/bookings",
+        icon: IconCalendar,
+      },
     {
       title: "Reviews",
       url: "/admin/reviews",

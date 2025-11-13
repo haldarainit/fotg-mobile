@@ -39,6 +39,7 @@ import {
   Check,
   X,
   Info,
+  Calendar,
 } from "lucide-react";
 import { LpNavbar1 } from "@/components/pro-blocks/landing-page/lp-navbars/lp-navbar-1";
 import { Footer1 } from "@/components/pro-blocks/landing-page/footers/footer-1";
@@ -146,6 +147,21 @@ export default function GetAQuotePage() {
     brands: Brand[];
     models: DeviceModel[];
   }>({ brands: [], models: [] });
+
+  // Booking state for location service
+  const [bookingDate, setBookingDate] = useState<Date | null>(null);
+  const [bookingTimeSlot, setBookingTimeSlot] = useState("");
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
+  // Shipping address for pickup service
+  const [shippingAddress, setShippingAddress] = useState({
+    houseNumber: "",
+    streetName: "",
+    city: "",
+    zipcode: "",
+    country: "United States (US)",
+  });
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -278,6 +294,32 @@ export default function GetAQuotePage() {
 
     fetchData();
   }, []);
+
+  // Fetch available time slots when date is selected
+  useEffect(() => {
+    const fetchAvailableSlots = async () => {
+      if (!bookingDate || serviceMethod !== "location") {
+        setBookedSlots([]);
+        return;
+      }
+
+      setIsLoadingSlots(true);
+      try {
+        const dateStr = bookingDate.toISOString().split("T")[0];
+        const response = await fetch(`/api/bookings?date=${dateStr}`);
+        if (response.ok) {
+          const data = await response.json();
+          setBookedSlots(data.data.bookedSlots || []);
+        }
+      } catch (error) {
+        console.error("Error fetching available slots:", error);
+      } finally {
+        setIsLoadingSlots(false);
+      }
+    };
+
+    fetchAvailableSlots();
+  }, [bookingDate, serviceMethod]);
 
   const getFilteredBrands = () => {
     let filteredBrands = brands;
@@ -689,6 +731,11 @@ export default function GetAQuotePage() {
         phone: formData.phone,
         email: formData.email,
         notes: formData.notes,
+        // Add booking data for location service
+        bookingDate: serviceMethod === "location" ? bookingDate?.toISOString() : undefined,
+        bookingTimeSlot: serviceMethod === "location" ? bookingTimeSlot : undefined,
+        // Add shipping address for pickup service
+        shippingAddress: serviceMethod === "pickup" ? shippingAddress : undefined,
         pricing: {
           subtotal: pricing.subtotal,
           discount: pricing.discount,
@@ -1835,6 +1882,163 @@ export default function GetAQuotePage() {
                     </RadioGroup>
                   </div>
 
+                  {/* Booking Date/Time for Location Service */}
+                  {serviceMethod === "location" && (
+                    <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-primary" />
+                        Select Your Appointment
+                      </h3>
+                      
+                      <div className="space-y-2">
+                        <Label>
+                          Select Date <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          type="date"
+                          min={new Date().toISOString().split("T")[0]}
+                          value={bookingDate ? bookingDate.toISOString().split("T")[0] : ""}
+                          onChange={(e) => {
+                            setBookingDate(e.target.value ? new Date(e.target.value) : null);
+                            setBookingTimeSlot(""); // Reset time slot when date changes
+                          }}
+                          required
+                        />
+                      </div>
+
+                      {bookingDate && (
+                        <div className="space-y-2">
+                          <Label>
+                            Select Time Slot <span className="text-red-500">*</span>
+                          </Label>
+                          {isLoadingSlots ? (
+                            <div className="text-sm text-muted-foreground">Loading available slots...</div>
+                          ) : (
+                            <RadioGroup
+                              value={bookingTimeSlot}
+                              onValueChange={setBookingTimeSlot}
+                              className="grid grid-cols-2 gap-2"
+                            >
+                              {["9:00 am - 11:00 am", "11:00 am - 1:00 pm", "1:00 pm - 3:00 pm", "3:00 pm - 5:00 pm", "5:00 pm - 7:00 pm"].map((slot) => {
+                                const isBooked = bookedSlots.includes(slot);
+                                return (
+                                  <label
+                                    key={slot}
+                                    className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-all ${
+                                      isBooked
+                                        ? "opacity-50 cursor-not-allowed bg-muted"
+                                        : bookingTimeSlot === slot
+                                        ? "border-primary bg-primary/5 cursor-pointer"
+                                        : "hover:border-primary/50 cursor-pointer"
+                                    }`}
+                                  >
+                                    <RadioGroupItem value={slot} disabled={isBooked} />
+                                    <span className="flex-1">{slot}</span>
+                                    {isBooked && (
+                                      <Badge variant="destructive" className="text-xs">Booked</Badge>
+                                    )}
+                                  </label>
+                                );
+                              })}
+                            </RadioGroup>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Shipping Address for Pickup Service */}
+                  {serviceMethod === "pickup" && (
+                    <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                      <h3 className="font-semibold flex items-center gap-2">
+                        <Package className="h-5 w-5 text-primary" />
+                        Your Pickup Address
+                      </h3>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>
+                            HOUSE NUMBER <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            required
+                            value={shippingAddress.houseNumber}
+                            onChange={(e) =>
+                              setShippingAddress({
+                                ...shippingAddress,
+                                houseNumber: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>
+                            STREETNAME <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            required
+                            value={shippingAddress.streetName}
+                            onChange={(e) =>
+                              setShippingAddress({
+                                ...shippingAddress,
+                                streetName: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>
+                            CITY <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            required
+                            value={shippingAddress.city}
+                            onChange={(e) =>
+                              setShippingAddress({
+                                ...shippingAddress,
+                                city: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>
+                            ZIPCODE <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            required
+                            value={shippingAddress.zipcode}
+                            onChange={(e) =>
+                              setShippingAddress({
+                                ...shippingAddress,
+                                zipcode: e.target.value,
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>
+                          COUNTRY <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          required
+                          value={shippingAddress.country}
+                          onChange={(e) =>
+                            setShippingAddress({
+                              ...shippingAddress,
+                              country: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-4">
                     <div className="flex gap-4">
                       <button
@@ -1942,7 +2146,12 @@ export default function GetAQuotePage() {
                       type="submit"
                       className="w-full"
                       size="lg"
-                      disabled={!serviceMethod || isSubmitting}
+                      disabled={
+                        !serviceMethod || 
+                        isSubmitting ||
+                        (serviceMethod === "location" && (!bookingDate || !bookingTimeSlot)) ||
+                        (serviceMethod === "pickup" && (!shippingAddress.houseNumber || !shippingAddress.streetName || !shippingAddress.city || !shippingAddress.zipcode))
+                      }
                     >
                       {isSubmitting ? (
                         <>

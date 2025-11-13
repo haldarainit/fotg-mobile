@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
+import connectDB from "@/lib/mongodb";
+import Booking from "@/models/Booking";
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
+
     const {
       deviceType,
       brand,
@@ -18,6 +22,9 @@ export async function POST(request: NextRequest) {
       notes,
       total,
       pricing,
+      bookingDate,
+      bookingTimeSlot,
+      shippingAddress,
     } = await request.json();
 
     // Validate required fields
@@ -27,6 +34,64 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // If service method is location, validate booking date and time
+    if (serviceMethod === "location") {
+      if (!bookingDate || !bookingTimeSlot) {
+        return NextResponse.json(
+          { error: "Booking date and time slot are required for location service" },
+          { status: 400 }
+        );
+      }
+
+      // Check if the time slot is already booked
+      const startOfDay = new Date(bookingDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(bookingDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const existingBooking = await Booking.findOne({
+        bookingDate: {
+          $gte: startOfDay,
+          $lte: endOfDay,
+        },
+        bookingTimeSlot,
+        serviceMethod: "location",
+        status: { $ne: "cancelled" },
+      });
+
+      if (existingBooking) {
+        return NextResponse.json(
+          { error: "This time slot is already booked. Please select another time." },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Save booking to database
+    const booking = await Booking.create({
+      firstName,
+      lastName,
+      email,
+      phone,
+      customerType: customerType || "private",
+      deviceType,
+      brandId: brand?.id,
+      brandName: brand?.name,
+      modelId: model?.id,
+      modelName: model?.name,
+      colorId: color?.id,
+      colorName: color?.name,
+      serviceMethod,
+      bookingDate: serviceMethod === "location" ? new Date(bookingDate) : undefined,
+      bookingTimeSlot: serviceMethod === "location" ? bookingTimeSlot : undefined,
+      shippingAddress: serviceMethod === "pickup" ? shippingAddress : undefined,
+      repairs,
+      pricing,
+      notes,
+      status: "pending",
+    });
 
     // Create a transporter using Hostinger SMTP settings
     const transporter = nodemailer.createTransport({
@@ -39,11 +104,45 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Get service method details
-    const serviceMethodText =
-      serviceMethod === "location"
-        ? "Bring to our location"
-        : "At home with pick-up & delivery";
+    // Get service method details with booking info
+    let serviceMethodText = "";
+    let serviceDetailsHtml = "";
+    
+    if (serviceMethod === "location") {
+      serviceMethodText = "Service at your location (Mobile Repair)";
+      if (bookingDate && bookingTimeSlot) {
+        const formattedDate = new Date(bookingDate).toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        serviceDetailsHtml = `
+          <tr>
+            <td style="padding: 8px 0; color: #666;"><strong>Booking Date:</strong></td>
+            <td style="padding: 8px 0; color: #333;">${formattedDate}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;"><strong>Time Slot:</strong></td>
+            <td style="padding: 8px 0; color: #333;">${bookingTimeSlot}</td>
+          </tr>
+        `;
+      }
+    } else {
+      serviceMethodText = "Ship device (Pick-up & Delivery)";
+      if (shippingAddress) {
+        serviceDetailsHtml = `
+          <tr>
+            <td style="padding: 8px 0; color: #666;"><strong>Pickup Address:</strong></td>
+            <td style="padding: 8px 0; color: #333;">
+              ${shippingAddress.houseNumber} ${shippingAddress.streetName}<br/>
+              ${shippingAddress.city}, ${shippingAddress.zipcode}<br/>
+              ${shippingAddress.country}
+            </td>
+          </tr>
+        `;
+      }
+    }
 
     // Format repairs list (include selected part quality when available)
     const repairsList = repairs
@@ -131,6 +230,7 @@ export async function POST(request: NextRequest) {
                   <td style="padding: 8px 0; color: #666; width: 140px;"><strong>Service Method:</strong></td>
                   <td style="padding: 8px 0; color: #333;">${serviceMethodText}</td>
                 </tr>
+                ${serviceDetailsHtml}
               </table>
               
               <p style="margin: 15px 0 10px 0; color: #666; font-weight: bold;">Selected Repairs:</p>
@@ -269,7 +369,11 @@ Submission time: ${new Date().toLocaleString()}
     await transporter.sendMail(mailOptions);
 
     return NextResponse.json(
-      { message: "Quote request sent successfully" },
+      { 
+        message: "Quote request sent successfully",
+        bookingId: booking._id,
+        booking: booking,
+      },
       { status: 200 }
     );
   } catch (error) {
