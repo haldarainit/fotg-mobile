@@ -6,8 +6,10 @@ export interface IDiscountRule {
   type: "percentage" | "fixed"; // percentage off or fixed amount off
   value: number; // percentage (e.g., 10 for 10%) or fixed amount (e.g., 50 for $50)
   minRepairs?: number; // minimum number of repairs to qualify
+  minSubtotal?: number; // minimum subtotal to qualify
   specificRepairs?: string[]; // specific repair IDs that must be selected (e.g., ["screen", "battery"])
   active: boolean;
+  condition?: "minRepairs" | "minSubtotal"; // UI hint; not required for calculation
 }
 
 export interface ISettings extends Document {
@@ -23,8 +25,10 @@ const DiscountRuleSchema = new Schema<IDiscountRule>({
   type: { type: String, enum: ["percentage", "fixed"], required: true },
   value: { type: Number, required: true, min: 0 },
   minRepairs: { type: Number, min: 1 },
+  minSubtotal: { type: Number, min: 0 },
   specificRepairs: [{ type: String }],
   active: { type: Boolean, default: true },
+  condition: { type: String, enum: ["minRepairs", "minSubtotal"], required: false },
 });
 
 const SettingsSchema = new Schema<ISettings>(

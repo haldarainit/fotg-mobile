@@ -19,14 +19,15 @@ export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    let settings = await Settings.findOne();
+    let settings = await Settings.findOne().lean();
     
     // If no settings exist, create default settings
     if (!settings) {
-      settings = await Settings.create({
+      const newSettings = await Settings.create({
         taxPercentage: 0,
         discountRules: [],
       });
+      settings = newSettings.toObject();
     }
 
     return NextResponse.json({
@@ -67,14 +68,23 @@ export async function PUT(request: NextRequest) {
         settings.taxPercentage = taxPercentage;
       }
       if (discountRules !== undefined) {
-        settings.discountRules = discountRules;
+        // Clear existing rules and add new ones to ensure proper subdocument handling
+        settings.discountRules.splice(0, settings.discountRules.length);
+        discountRules.forEach(rule => {
+          settings.discountRules.push(rule);
+        });
+        console.log("About to save discountRules:", discountRules);
       }
       await settings.save();
     }
 
+    // Reload from DB to get the saved document with all fields
+    const savedSettings = await Settings.findById(settings._id).lean();
+    console.log("Updated settings document:", JSON.stringify(savedSettings, null, 2));
+
     return NextResponse.json({
       success: true,
-      data: settings,
+      data: savedSettings,
       message: "Settings updated successfully",
     });
   } catch (error: any) {

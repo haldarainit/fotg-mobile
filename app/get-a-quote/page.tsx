@@ -509,14 +509,26 @@ export default function GetAQuotePage() {
       return total + getRepairPrice(repairId);
     }, 0);
 
-    // Calculate applicable discount
-    let discount = 0;
-    let appliedDiscountRule = null;
+    // Stackable discount logic with categories (repairs/subtotal/specific)
+    let appliedDiscountRules: Array<{
+      id?: string;
+      name?: string;
+      type: "percentage" | "fixed";
+      value: number;
+      amount: number; // computed amount in $ for display
+      category: "repairs" | "subtotal" | "generic" | "specific";
+      minRepairs?: number;
+      minSubtotal?: number;
+    }> = [];
 
-    if (settings && settings.discountRules) {
-      // Find the best discount rule that applies
+    if (settings && Array.isArray(settings.discountRules)) {
+      const candidateRepairs: typeof appliedDiscountRules = [];
+      const candidateSubtotal: typeof appliedDiscountRules = [];
+      const candidateSpecific: typeof appliedDiscountRules = [];
+      const candidateGeneric: typeof appliedDiscountRules = [];
+
       for (const rule of settings.discountRules) {
-        if (!rule.active) continue;
+        if (!rule?.active) continue;
 
         let ruleApplies = true;
 
@@ -525,57 +537,92 @@ export default function GetAQuotePage() {
           ruleApplies = false;
         }
 
+        // Check minimum subtotal requirement (new)
+        if (rule.minSubtotal && subtotal < rule.minSubtotal) {
+          ruleApplies = false;
+        }
+
         // Check specific repairs requirement
         if (rule.specificRepairs && rule.specificRepairs.length > 0) {
           const hasAllRequired = rule.specificRepairs.every((reqRepairId: string) =>
             selectedRepairs.some((selRepairId) => {
               // Get the actual repair ID from the model's repair data
-              const modelRepair = (selectedModel as any)?.repairs?.find(
-                (r: any) => {
-                  const rId = typeof r.repairId === "object" 
-                    ? (r.repairId?._id ?? r.repairId?.id) 
-                    : r.repairId;
-                  return rId === selRepairId;
-                }
-              );
+              const modelRepair = (selectedModel as any)?.repairs?.find((r: any) => {
+                const rId = typeof r.repairId === "object"
+                  ? (r.repairId?._id ?? r.repairId?.id)
+                  : r.repairId;
+                return rId === selRepairId;
+              });
               const actualRepairId = typeof modelRepair?.repairId === "object"
                 ? (modelRepair.repairId?._id ?? modelRepair.repairId?.id)
                 : modelRepair?.repairId;
               return actualRepairId === reqRepairId || selRepairId === reqRepairId;
             })
           );
-          if (!hasAllRequired) {
-            ruleApplies = false;
-          }
+          if (!hasAllRequired) ruleApplies = false;
         }
 
-        if (ruleApplies) {
-          let ruleDiscount = 0;
-          if (rule.type === "percentage") {
-            ruleDiscount = (subtotal * rule.value) / 100;
-          } else {
-            ruleDiscount = rule.value;
-          }
+        if (!ruleApplies) continue;
 
-          // Use the best discount (highest value)
-          if (ruleDiscount > discount) {
-            discount = ruleDiscount;
-            appliedDiscountRule = rule;
-          }
+        const amount = rule.type === "percentage"
+          ? (subtotal * (Number(rule.value) || 0)) / 100
+          : (Number(rule.value) || 0);
+
+        const base = {
+          id: (rule as any)._id ?? (rule as any).id,
+          name: rule.name,
+          type: rule.type as "percentage" | "fixed",
+          value: Number(rule.value) || 0,
+          amount,
+          minRepairs: rule.minRepairs,
+          minSubtotal: (rule as any).minSubtotal,
+        };
+
+        if ((rule as any).minSubtotal) {
+          candidateSubtotal.push({ ...base, category: "subtotal" });
+        } else if (rule.specificRepairs && rule.specificRepairs.length > 0) {
+          candidateSpecific.push({ ...base, category: "specific" });
+        } else if (rule.minRepairs) {
+          candidateRepairs.push({ ...base, category: "repairs" });
+        } else {
+          candidateGeneric.push({ ...base, category: "generic" });
         }
       }
+
+      // From each category, pick the best single rule (highest $ amount)
+      const pickBest = (arr: typeof appliedDiscountRules) =>
+        arr.sort((a, b) => b.amount - a.amount)[0];
+
+      const bestRepairs = pickBest(candidateRepairs);
+      const bestSubtotal = pickBest(candidateSubtotal);
+      const bestSpecific = pickBest(candidateSpecific);
+      const bestGeneric = pickBest(candidateGeneric);
+
+      appliedDiscountRules = [bestRepairs, bestSubtotal, bestSpecific, bestGeneric].filter(Boolean) as typeof appliedDiscountRules;
     }
+
+    // Combine discounts: sum of percentages + sum of fixed amounts
+    const percentTotal = appliedDiscountRules
+      .filter((r) => r.type === "percentage")
+      .reduce((sum, r) => sum + (r.value || 0), 0);
+    const fixedTotal = appliedDiscountRules
+      .filter((r) => r.type === "fixed")
+      .reduce((sum, r) => sum + (r.amount || 0), 0);
+
+    const discount = (subtotal * percentTotal) / 100 + fixedTotal;
 
     // Calculate tax
     const taxPercentage = settings?.taxPercentage || 0;
-    const afterDiscount = subtotal - discount;
+    const afterDiscount = Math.max(0, subtotal - discount);
     const tax = (afterDiscount * taxPercentage) / 100;
     const total = afterDiscount + tax;
 
     return {
       subtotal,
       discount,
-      discountRule: appliedDiscountRule,
+      discountRule: appliedDiscountRules.length === 1 ? appliedDiscountRules[0] : null,
+      appliedDiscountRules,
+      combinedDiscountPercent: percentTotal,
       tax,
       taxPercentage,
       total,
@@ -645,7 +692,11 @@ export default function GetAQuotePage() {
         pricing: {
           subtotal: pricing.subtotal,
           discount: pricing.discount,
-          discountRuleName: pricing.discountRule?.name,
+          discountRuleName: pricing.appliedDiscountRules?.length
+            ? pricing.appliedDiscountRules.map((r: any) => r.name).filter(Boolean).join(" + ")
+            : pricing.discountRule?.name,
+          discountRules: pricing.appliedDiscountRules || [],
+          discountPercentTotal: pricing.combinedDiscountPercent || 0,
           tax: pricing.tax,
           taxPercentage: pricing.taxPercentage,
           total: pricing.total,
@@ -1666,39 +1717,48 @@ export default function GetAQuotePage() {
                             <p className="text-muted-foreground">Subtotal</p>
                             <p className="font-semibold">${pricing.subtotal.toFixed(2)}</p>
                           </div>
+
+                          {pricing.appliedDiscountRules && pricing.appliedDiscountRules.length > 0 && (
+                            <div className="rounded-md border bg-primary/5 p-3 text-sm">
+                              <p className="font-semibold mb-2">Applied Offers</p>
+                              <ul className="space-y-1">
+                                {pricing.appliedDiscountRules.map((r, idx) => (
+                                  <li key={idx} className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">
+                                      {r.name || (r.minRepairs ? `${r.minRepairs}+ repairs` : r.minSubtotal ? `Subtotal ≥ $${r.minSubtotal}` : "Offer")} — {r.type === "percentage" ? `${r.value}% off` : `$${r.value} off`}
+                                    </span>
+                                    <span className="text-green-600">-${r.amount.toFixed(2)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
                           {pricing.discount > 0 && (
                             <div className="flex items-center justify-between text-sm">
                               <p className="text-muted-foreground">
                                 Discount
-                                {pricing.discountRule && (
-                                  <span className="ml-1 text-xs">
-                                    (
-                                      {/* {pricing.discountRule.name} */}
-                                    {pricing.discountRule.type === "percentage"
-                                      ? ` ${pricing.discountRule.value}%`
-                                      : ` $${pricing.discountRule.value}`
-                                    })
-                                  </span>
-                                )}
+                                <span className="ml-1 text-xs">
+                                  {pricing.combinedDiscountPercent > 0 ? `(${pricing.combinedDiscountPercent}%` : "("}
+                                  {pricing.appliedDiscountRules?.some(r => r.type === "fixed") ? `${pricing.combinedDiscountPercent > 0 ? " + " : ""}$${pricing.appliedDiscountRules.filter((r:any)=>r.type==="fixed").reduce((s:number,r:any)=>s+r.amount,0).toFixed(2)}` : ""}
+                                  )
+                                </span>
                               </p>
                               <p className="text-green-600 font-semibold">
                                 -${pricing.discount.toFixed(2)}
                               </p>
                             </div>
                           )}
+
                           {pricing.taxPercentage > 0 && (
                             <div className="flex items-center justify-between text-sm">
-                              <p className="text-muted-foreground">
-                                Tax ({pricing.taxPercentage}%)
-                              </p>
+                              <p className="text-muted-foreground">Tax ({pricing.taxPercentage}%)</p>
                               <p className="font-semibold">${pricing.tax.toFixed(2)}</p>
                             </div>
                           )}
                           <div className="flex items-center justify-between pt-2 border-t">
                             <p className="text-lg font-bold">Total</p>
-                            <p className="text-3xl font-bold text-primary">
-                              ${pricing.total.toFixed(2)}
-                            </p>
+                            <p className="text-3xl font-bold text-primary">${pricing.total.toFixed(2)}</p>
                           </div>
                         </>
                       );
@@ -2004,49 +2064,53 @@ export default function GetAQuotePage() {
                               <p className="text-muted-foreground">Subtotal</p>
                               <p className="font-semibold">${pricing.subtotal.toFixed(2)}</p>
                             </div>
+
+                            {pricing.appliedDiscountRules && pricing.appliedDiscountRules.length > 0 && (
+                              <div className="rounded-md border bg-primary/5 p-3 text-sm">
+                                <p className="font-semibold mb-2">Applied Offers</p>
+                                <ul className="space-y-1">
+                                  {pricing.appliedDiscountRules.map((r, idx) => (
+                                    <li key={idx} className="flex items-center justify-between">
+                                      <span className="text-muted-foreground">
+                                        {r.name || (r.minRepairs ? `${r.minRepairs}+ repairs` : r.minSubtotal ? `Subtotal ≥ $${r.minSubtotal}` : "Offer")} — {r.type === "percentage" ? `${r.value}% off` : `$${r.value} off`}
+                                      </span>
+                                      <span className="text-green-600">-${r.amount.toFixed(2)}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
                             {pricing.discount > 0 && (
                               <div className="flex items-center justify-between text-sm">
                                 <p className="text-muted-foreground">
                                   Discount
-                                  {pricing.discountRule && (
-                                    <span className="ml-1 text-xs">
-                                      ({pricing.discountRule.name}
-                                      {pricing.discountRule.type === "percentage"
-                                        ? ` — ${pricing.discountRule.value}%`
-                                        : ` — $${pricing.discountRule.value}`
-                                      })
-                                    </span>
-                                  )}
+                                  <span className="ml-1 text-xs">
+                                    {pricing.combinedDiscountPercent > 0 ? `(${pricing.combinedDiscountPercent}%` : "("}
+                                    {pricing.appliedDiscountRules?.some(r => r.type === "fixed") ? `${pricing.combinedDiscountPercent > 0 ? " + " : ""}$${pricing.appliedDiscountRules.filter((r:any)=>r.type==="fixed").reduce((s:number,r:any)=>s+r.amount,0).toFixed(2)}` : ""}
+                                    )
+                                  </span>
                                 </p>
-                                <p className="text-green-600 font-semibold">
-                                  -${pricing.discount.toFixed(2)}
-                                </p>
+                                <p className="text-green-600 font-semibold">-${pricing.discount.toFixed(2)}</p>
                               </div>
                             )}
+
                             {pricing.taxPercentage > 0 && (
                               <div className="flex items-center justify-between text-sm">
-                                <p className="text-muted-foreground">
-                                  Tax ({pricing.taxPercentage}%)
-                                </p>
+                                <p className="text-muted-foreground">Tax ({pricing.taxPercentage}%)</p>
                                 <p className="font-semibold">${pricing.tax.toFixed(2)}</p>
                               </div>
                             )}
                             <div className="bg-primary/10 p-4 rounded-lg mt-3">
                               <div className="flex items-center justify-between">
                                 <p className="font-bold text-lg">Total</p>
-                                <p className="text-3xl font-bold text-primary">
-                                  ${pricing.total.toFixed(2)}
-                                </p>
+                                <p className="text-3xl font-bold text-primary">${pricing.total.toFixed(2)}</p>
                               </div>
                               {pricing.taxPercentage > 0 && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Incl. {pricing.taxPercentage}% tax
-                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">Incl. {pricing.taxPercentage}% tax</p>
                               )}
                               {pricing.discount > 0 && (
-                                <p className="text-xs text-green-600 mt-1">
-                                  You saved ${pricing.discount.toFixed(2)}!
-                                </p>
+                                <p className="text-xs text-green-600 mt-1">You saved ${pricing.discount.toFixed(2)}!</p>
                               )}
                             </div>
                           </>

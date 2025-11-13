@@ -23,8 +23,10 @@ interface DiscountRule {
   type: "percentage" | "fixed";
   value: number;
   minRepairs?: number;
+  minSubtotal?: number;
   specificRepairs?: string[];
   active: boolean;
+  condition?: "minRepairs" | "minSubtotal";
 }
 
 interface Settings {
@@ -60,7 +62,28 @@ export function SettingsManagement() {
 
       if (settingsRes.ok) {
         const data = await settingsRes.json();
-        setSettings(data.data || { taxPercentage: 0, discountRules: [] });
+        console.log("=== FETCH: Raw data from API ===");
+        console.log("Raw settings:", JSON.stringify(data.data, null, 2));
+        
+        const raw = data.data || { taxPercentage: 0, discountRules: [] };
+        // Ensure numeric types and set proper defaults only if fields are missing
+        const normalizedRules = (raw.discountRules || []).map((r: any, idx: number) => {
+          console.log(`Fetch Rule #${idx + 1}:`, r);
+          
+          return {
+            ...r,
+            // Only set defaults if condition is missing
+            condition: r.condition || (r.minSubtotal != null ? "minSubtotal" : "minRepairs"),
+            // Preserve existing values, convert to numbers if present
+            minSubtotal: r.minSubtotal != null ? Number(r.minSubtotal) : undefined,
+            minRepairs: r.minRepairs != null ? Number(r.minRepairs) : undefined,
+          };
+        });
+        
+        console.log("=== FETCH: Final state ===");
+        console.log("Normalized rules:", normalizedRules);
+        
+        setSettings({ ...(raw as any), discountRules: normalizedRules });
       }
 
       if (repairsRes.ok) {
@@ -78,19 +101,83 @@ export function SettingsManagement() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      console.log("=== SAVE: Before cleaning ===");
+      console.log("Original settings:", JSON.stringify(settings, null, 2));
+      
+      // Ensure each rule has condition and appropriate min field set before saving
+      const cleanedSettings = {
+        ...settings,
+        discountRules: settings.discountRules.map((rule, idx) => {
+          let condition: "minRepairs" | "minSubtotal" =
+            rule.condition || (rule.minSubtotal != null ? "minSubtotal" : "minRepairs");
+
+          let minRepairs =
+            rule.minRepairs !== undefined && rule.minRepairs !== null
+              ? Number(rule.minRepairs)
+              : undefined;
+          let minSubtotal =
+            rule.minSubtotal !== undefined && rule.minSubtotal !== null
+              ? Number(rule.minSubtotal)
+              : undefined;
+
+          // Normalise based on chosen condition and provide sensible defaults
+          if (condition === "minRepairs") {
+            if (minRepairs == null || Number.isNaN(minRepairs)) {
+              minRepairs = 1; // default minimum repairs
+            }
+            minSubtotal = undefined;
+          } else if (condition === "minSubtotal") {
+            if (minSubtotal == null || Number.isNaN(minSubtotal)) {
+              minSubtotal = 0; // default minimum subtotal
+            }
+            minRepairs = undefined;
+          }
+
+          const cleaned = {
+            ...rule,
+            condition,
+            ...(minSubtotal != null ? { minSubtotal } : {}),
+            ...(minRepairs != null ? { minRepairs } : {}),
+          };
+
+          console.log(`Rule #${idx + 1} cleaned:`, cleaned);
+          return cleaned;
+        }),
+      };
+
+      console.log("=== SAVE: Sending to API ===");
+      console.log("Cleaned settings:", JSON.stringify(cleanedSettings, null, 2));
+
       const response = await fetch("/api/admin/settings", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(cleanedSettings),
       });
 
       const data = await response.json();
+      
+      console.log("=== SAVE: Response from API ===");
+      console.log("Response data:", JSON.stringify(data, null, 2));
 
       if (response.ok) {
         toast.success("Settings saved successfully");
-        setSettings(data.data);
+        // Use the response data, but merge with current state to preserve fields that might be missing
+        const responseData = data.data;
+        const mergedSettings = {
+          ...settings,
+          ...responseData,
+          discountRules: responseData.discountRules?.map((rule: any, idx: number) => ({
+            ...settings.discountRules[idx], // Preserve current state
+            ...rule, // Override with response data
+          })) || settings.discountRules,
+        };
+
+        console.log("=== SAVE: Final state ===");
+        console.log("Merged settings:", mergedSettings);
+
+        setSettings(mergedSettings);
       } else {
         toast.error(data.error || "Failed to save settings");
       }
@@ -115,6 +202,7 @@ export function SettingsManagement() {
           minRepairs: 1,
           specificRepairs: [],
           active: true,
+          condition: "minRepairs",
         },
       ],
     });
@@ -127,8 +215,35 @@ export function SettingsManagement() {
   };
 
   const updateDiscountRule = (index: number, field: string, value: any) => {
+    console.log(`=== UPDATE RULE #${index + 1} ===`);
+    console.log(`Field: ${field}, Value:`, value);
+    
     const newRules = [...settings.discountRules];
-    (newRules[index] as any)[field] = value;
+    if (field === "condition") {
+      console.log(`Switching condition to: ${value}`);
+      (newRules[index] as any)[field] = value;
+      if (value === "minRepairs") {
+        // Clear subtotal if switching to minRepairs
+        console.log("Clearing minSubtotal");
+        (newRules[index] as any).minSubtotal = undefined;
+        // Set default minRepairs if not present
+        if (!newRules[index].minRepairs) {
+          (newRules[index] as any).minRepairs = 1;
+        }
+      } else if (value === "minSubtotal") {
+        // Clear repairs if switching to minSubtotal
+        console.log("Clearing minRepairs");
+        (newRules[index] as any).minRepairs = undefined;
+        // Set default minSubtotal if not present
+        if (!newRules[index].minSubtotal) {
+          (newRules[index] as any).minSubtotal = 0;
+        }
+      }
+    } else {
+      (newRules[index] as any)[field] = value;
+    }
+    
+    console.log(`Rule #${index + 1} after update:`, newRules[index]);
     setSettings({ ...settings, discountRules: newRules });
   };
 
@@ -199,7 +314,7 @@ export function SettingsManagement() {
             <div>
               <h2 className="text-2xl font-bold mb-2">Discount Rules</h2>
               <p className="text-sm text-muted-foreground">
-                Create discount rules based on repair combinations or minimum repairs
+                Create discount rules based on minimum repairs, specific repair combos, or minimum subtotal thresholds
               </p>
             </div>
             <Button onClick={addDiscountRule} className="gap-2">
@@ -290,11 +405,27 @@ export function SettingsManagement() {
                     />
                   </div>
 
+                  {/* Rule condition selector */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
+                      <Label htmlFor={`condition-${index}`}>Applies When *</Label>
+                      <Select
+                        value={rule.condition || (rule.minSubtotal !== undefined ? "minSubtotal" : "minRepairs")}
+                        onValueChange={(value) => updateDiscountRule(index, "condition", value)}
+                      >
+                        <SelectTrigger id={`condition-${index}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="minRepairs">Minimum repairs</SelectItem>
+                          <SelectItem value="minSubtotal">Minimum subtotal</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
                       <Label htmlFor={`value-${index}`}>
-                        Discount Value *{" "}
-                        {rule.type === "percentage" ? "(%)" : "($)"}
+                        Discount Value * {rule.type === "percentage" ? "(%)" : "($)"}
                       </Label>
                       <div className="flex items-center gap-2 mt-2">
                         <Input
@@ -304,11 +435,7 @@ export function SettingsManagement() {
                           step={rule.type === "percentage" ? "0.01" : "1"}
                           value={rule.value}
                           onChange={(e) =>
-                            updateDiscountRule(
-                              index,
-                              "value",
-                              parseFloat(e.target.value) || 0
-                            )
+                            updateDiscountRule(index, "value", parseFloat(e.target.value) || 0)
                           }
                           placeholder="0"
                         />
@@ -319,11 +446,12 @@ export function SettingsManagement() {
                         )}
                       </div>
                     </div>
+                  </div>
 
+                  {/* Conditional inputs: show only the chosen condition field */}
+                  {(rule.condition || (rule.minSubtotal !== undefined ? "minSubtotal" : "minRepairs")) === "minRepairs" && (
                     <div>
-                      <Label htmlFor={`minRepairs-${index}`}>
-                        Minimum Repairs
-                      </Label>
+                      <Label htmlFor={`minRepairs-${index}`}>Minimum Repairs</Label>
                       <Input
                         id={`minRepairs-${index}`}
                         type="number"
@@ -333,16 +461,36 @@ export function SettingsManagement() {
                           updateDiscountRule(
                             index,
                             "minRepairs",
-                            parseInt(e.target.value) || undefined
+                            e.target.value === "" ? undefined : parseInt(e.target.value)
                           )
                         }
-                        placeholder="Optional"
+                        placeholder="Required when condition is Minimum repairs"
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Leave empty for no minimum
-                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">Example: 2 means 2 or more repairs</p>
                     </div>
-                  </div>
+                  )}
+
+                  {(rule.condition || (rule.minSubtotal !== undefined ? "minSubtotal" : "minRepairs")) === "minSubtotal" && (
+                    <div>
+                      <Label htmlFor={`minSubtotal-${index}`}>Minimum Subtotal ($)</Label>
+                      <Input
+                        id={`minSubtotal-${index}`}
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={rule.minSubtotal ?? ""}
+                        onChange={(e) =>
+                          updateDiscountRule(
+                            index,
+                            "minSubtotal",
+                            e.target.value === "" ? undefined : parseFloat(e.target.value)
+                          )
+                        }
+                        placeholder="Required when condition is Minimum subtotal"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">Example: 300 means subtotal ≥ $300</p>
+                    </div>
+                  )}
 
                   <div>
                     <Label>Specific Repairs (Optional)</Label>
