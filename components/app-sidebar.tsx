@@ -11,6 +11,7 @@ import {
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
+import Image from "next/image"
 import {
   Sidebar,
   SidebarContent,
