@@ -51,6 +51,8 @@ const DeviceModelSchema = new mongoose.Schema(
           {
             id: { type: String },
             name: { type: String },
+            description: { type: String },
+            duration: { type: String },
             price: { type: Number, default: 0 },
           },
         ],

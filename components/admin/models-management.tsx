@@ -76,7 +76,7 @@ export function ModelsManagement() {
     modelRepairs: [] as Array<{
       repairId: string;
       basePrice: number;
-      qualityPrices?: Array<{ id: string; name: string; price: number }>;
+      qualityPrices?: Array<{ id: string; name: string; description?: string; duration?: string; price: number }>;
     }>,
     active: true,
   });
@@ -403,8 +403,17 @@ export function ModelsManagement() {
   ) => {
     const newList = [...formData.modelRepairs];
     if (!newList[modelRepairIndex].qualityPrices) newList[modelRepairIndex].qualityPrices = [];
+    
+    // Get the repair details to extract quality option info
+    const repairId = newList[modelRepairIndex].repairId;
+    const selectedRepair = repairsList.find(r => r._id === repairId);
+    const qualityOption = selectedRepair?.qualityOptions?.[qualityIndex];
+    
     newList[modelRepairIndex].qualityPrices![qualityIndex] = {
-      ...newList[modelRepairIndex].qualityPrices![qualityIndex],
+      id: qualityOption?.id || `quality_${qualityIndex}`,
+      name: qualityOption?.name || `Quality ${qualityIndex + 1}`,
+      description: qualityOption?.description,
+      duration: selectedRepair?.duration,
       price,
     };
     setFormData({ ...formData, modelRepairs: newList });

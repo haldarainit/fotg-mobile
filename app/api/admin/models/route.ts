@@ -46,12 +46,39 @@ export async function GET(request: NextRequest) {
       .sort({ name: 1 })
       .lean();
 
-    console.log(`Fetched ${models.length} models`);
+    // Enrich quality prices with details from repair quality options
+    const enrichedModels = models.map((model: any) => {
+      if (model.repairs && model.repairs.length > 0) {
+        model.repairs = model.repairs.map((repair: any) => {
+          if (repair.qualityPrices && repair.qualityPrices.length > 0 && repair.repairId) {
+            const repairItem = repair.repairId;
+            if (repairItem && repairItem.qualityOptions) {
+              repair.qualityPrices = repair.qualityPrices.map((qp: any) => {
+                const qualityOption = repairItem.qualityOptions.find((qo: any) => qo.id === qp.id);
+                if (qualityOption) {
+                  return {
+                    ...qp,
+                    name: qualityOption.name || qp.name,
+                    description: qualityOption.description,
+                    duration: repairItem.duration,
+                  };
+                }
+                return qp;
+              });
+            }
+          }
+          return repair;
+        });
+      }
+      return model;
+    });
+
+    console.log(`Fetched ${enrichedModels.length} models`);
 
     return NextResponse.json({
       success: true,
-      data: models,
-      models: models, // For backwards compatibility
+      data: enrichedModels,
+      models: enrichedModels, // For backwards compatibility
     });
   } catch (error) {
     console.error("Error fetching models:", error);

@@ -171,7 +171,7 @@ export default function GetAQuotePage() {
         const brandsRes = await fetch("/api/admin/brands?activeOnly=true");
         if (brandsRes.ok) {
           const brandsData = await brandsRes.json();
-          console.log("Fetched brands for quote:", brandsData);
+          // console.log("Fetched brands for quote:", brandsData);
           // Normalize backend brand shape to frontend Brand type
           const rawBrands = brandsData.data || brandsData.brands || [];
           const normalizedBrands: Brand[] = rawBrands.map((b: any) => ({
@@ -187,9 +187,27 @@ export default function GetAQuotePage() {
         const modelsRes = await fetch("/api/admin/models?activeOnly=true");
         if (modelsRes.ok) {
           const modelsData = await modelsRes.json();
-          console.log("Fetched models for quote:", modelsData);
+          // console.log("Fetched models for quote:", modelsData);
           const rawModels = modelsData.data || modelsData.models || [];
           const normalizedModels: DeviceModel[] = rawModels.map((m: any) => {
+            // Debug logging for repairs data
+            // console.log("Model repairs data:", m.repairs);
+            if (m.repairs && m.repairs.length > 0) {
+              m.repairs.forEach((repair: any) => {
+                // console.log("Repair quality prices:", repair.qualityPrices);
+                if (repair.qualityPrices) {
+                  repair.qualityPrices.forEach((qp: any) => {
+                    // console.log("Quality Price object:", qp);
+                    // console.log("Quality ID:", qp.id);
+                    // console.log("Quality Name:", qp.name);
+                    // console.log("Quality Description:", qp.description);
+                    // console.log("Quality Duration:", qp.duration);
+                    // console.log("Quality Price:", qp.price);
+                  });
+                }
+              });
+            }
+            
             // Handle brandId - it can be an ObjectId string or a populated object
             let extractedBrandId = "";
             if (typeof m.brandId === "string") {
@@ -218,25 +236,30 @@ export default function GetAQuotePage() {
         const repairsRes = await fetch("/api/admin/repairs?activeOnly=true");
         if (repairsRes.ok) {
           const repairsData = await repairsRes.json();
-          console.log("Fetched repairs for quote:", repairsData);
+          // console.log("Fetched repairs for quote:", repairsData);
           const rawRepairs = repairsData.data || repairsData.repairs || [];
-          const normalizedRepairs: RepairItem[] = rawRepairs.map((r: any) => ({
-            id: r._id ?? r.id ?? String(r._id ?? r.id ?? ""),
-            name: r.name || r.title || "",
-            price: r.price ?? r.basePrice ?? 0,
-            duration: r.duration || r.estimatedTime || "",
-            description: r.description || r.desc || "",
-            badge: r.badge || r.label,
-            icon: r.icon || r.iconName || "",
-            deviceTypes: r.deviceTypes || r.applicableDeviceTypes || [],
-            // Pass through quality options from backend
-            hasQualityOptions: r.hasQualityOptions || false,
-            qualityOptions: r.qualityOptions || [],
-          } as any));
+          // console.log("Raw repairs data:", rawRepairs);
+          const normalizedRepairs: RepairItem[] = rawRepairs.map((r: any) => {
+            // console.log("Processing repair:", r.name, "Quality options:", r.qualityOptions);
+            return {
+              id: r._id ?? r.id ?? String(r._id ?? r.id ?? ""),
+              name: r.name || r.title || "",
+              price: r.price ?? r.basePrice ?? 0,
+              duration: r.duration || r.estimatedTime || "",
+              description: r.description || r.desc || "",
+              badge: r.badge || r.label,
+              icon: r.icon || r.iconName || "",
+              deviceTypes: r.deviceTypes || r.applicableDeviceTypes || [],
+              // Pass through quality options from backend
+              hasQualityOptions: r.hasQualityOptions || false,
+              qualityOptions: r.qualityOptions || [],
+            } as any;
+          });
+          // console.log("Normalized repairs:", normalizedRepairs);
           setRepairs(normalizedRepairs);
         }
       } catch (error) {
-        console.error("Error fetching data:", error);
+        // console.error("Error fetching data:", error);
         toast.error("Failed to load data", {
           description: "Some data couldn't be loaded. Please refresh the page.",
         });
@@ -390,6 +413,7 @@ export default function GetAQuotePage() {
   };
 
   const handleRepairToggle = (repairId: string) => {
+    // console.log("handleRepairToggle called with repairId:", repairId);
     const isSelected = selectedRepairs.includes(repairId);
     
     // Check if this repair has quality options from the model's repair data
@@ -398,14 +422,18 @@ export default function GetAQuotePage() {
         const rId = typeof r.repairId === "object" 
           ? (r.repairId?._id ?? r.repairId?.id) 
           : r.repairId;
+        // console.log("Comparing model repairId:", rId, "with repairId:", repairId, "match:", rId === repairId);
         return rId === repairId;
       }
     );
     
     const hasQualityOptions = modelRepair?.qualityPrices && modelRepair.qualityPrices.length > 1;
+    // console.log("Model repair found:", modelRepair);
+    // console.log("Has quality options:", hasQualityOptions);
 
     if (!isSelected && hasQualityOptions) {
       // Show quality selection dialog when selecting a repair that has quality options
+      // console.log("Opening quality dialog for repair:", repairId);
       setSelectedRepairForQuality(repairId);
       setShowPartQualityDialog(true);
     } else if (isSelected) {
@@ -450,7 +478,7 @@ export default function GetAQuotePage() {
     );
 
     if (!modelRepair) {
-      console.warn(`No pricing found for repair ${repairId} on model ${selectedModel.name}`);
+      // console.warn(`No pricing found for repair ${repairId} on model ${selectedModel.name}`);
       return 0;
     }
 
@@ -571,7 +599,7 @@ export default function GetAQuotePage() {
         });
       }
     } catch (error) {
-      console.error("Error submitting quote:", error);
+      // console.error("Error submitting quote:", error);
       toast.error("Failed to submit quote request", {
         description: "Please check your connection and try again.",
       });
@@ -844,12 +872,12 @@ export default function GetAQuotePage() {
                     open={showFindModelDialog}
                     onOpenChange={setShowFindModelDialog}
                   >
-                    <DialogTrigger asChild>
+                    {/* <DialogTrigger asChild>
                       <button className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-secondary transition-colors text-sm">
                         <Info className="h-4 w-4" />
                         Find my model
                       </button>
-                    </DialogTrigger>
+                    </DialogTrigger> */}
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle className="text-2xl">
@@ -1345,6 +1373,11 @@ export default function GetAQuotePage() {
                     const hasQualityOptions = modelRepair?.qualityPrices && modelRepair.qualityPrices.length > 1;
                     const selectedQuality = repairPartQuality[repair.id];
                     
+                    // Debug logging for quality options
+                    // console.log(`Repair ${repair.id} has quality options:`, hasQualityOptions);
+                    // console.log(`Selected quality for ${repair.id}:`, selectedQuality);
+                    // console.log(`Quality prices for ${repair.id}:`, modelRepair?.qualityPrices);
+                    
                     // Use model-specific base price
                     const displayPrice = modelRepair?.basePrice ?? 0;
                     
@@ -1380,11 +1413,20 @@ export default function GetAQuotePage() {
                               {repair.badge}
                             </Badge>
                           )}
-                          {isSelected && selectedQuality && hasQualityOptions && (
-                            <Badge variant="secondary" className="mb-2">
-                              {selectedQuality === "oem" ? "Original (OEM)" : "Premium Aftermarket"}
-                            </Badge>
-                          )}
+                          {isSelected && selectedQuality && hasQualityOptions && (() => {
+                            const selectedQualityData = modelRepair?.qualityPrices?.find(
+                              (qp: any) => qp.id === selectedQuality
+                            );
+                            // Find quality details from repair data
+                            const repairData = repairs.find((r) => r.id === repair.id);
+                            const qualityDetails = (repairData as any)?.qualityOptions?.find((q: any) => q.id === selectedQuality);
+                            
+                            return selectedQualityData ? (
+                              <Badge variant="secondary" className="mb-2">
+                                {qualityDetails?.name || selectedQualityData.name || selectedQuality}
+                              </Badge>
+                            ) : null;
+                          })()}
                           <p className="text-sm text-muted-foreground mb-3">
                             {repair.description}
                           </p>
@@ -1478,11 +1520,28 @@ export default function GetAQuotePage() {
                               <p className="font-medium text-sm">
                                 {repair.name}
                               </p>
-                              {quality && (
-                                <Badge variant="outline" className="text-xs mt-1">
-                                  {quality === "oem" ? "Original (OEM)" : "Premium Aftermarket"}
-                                </Badge>
-                              )}
+                              {quality && (() => {
+                                const modelRepair = (selectedModel as any)?.repairs?.find(
+                                  (r: any) => {
+                                    const rId = typeof r.repairId === "object" 
+                                      ? (r.repairId?._id ?? r.repairId?.id) 
+                                      : r.repairId;
+                                    return rId === repairId;
+                                  }
+                                );
+                                const qualityData = modelRepair?.qualityPrices?.find(
+                                  (qp: any) => qp.id === quality
+                                );
+                                // Find quality details from repair data
+                                const repairData = repairs.find((r) => r.id === repairId);
+                                const qualityDetails = (repairData as any)?.qualityOptions?.find((q: any) => q.id === quality);
+                                
+                                return qualityData ? (
+                                  <Badge variant="outline" className="text-xs mt-1">
+                                    {qualityDetails?.name || qualityData.name || quality}
+                                  </Badge>
+                                ) : null;
+                              })()}
                               <p className="text-xs text-muted-foreground">
                                 {repair.duration}
                               </p>
@@ -1781,11 +1840,28 @@ export default function GetAQuotePage() {
                                 <p className="text-sm font-medium">
                                   {repair.name}
                                 </p>
-                                {quality && (
-                                  <Badge variant="outline" className="text-xs mt-1">
-                                    {quality === "oem" ? "Original (OEM)" : "Premium Aftermarket"}
-                                  </Badge>
-                                )}
+                                {quality && (() => {
+                                  const modelRepair = (selectedModel as any)?.repairs?.find(
+                                    (r: any) => {
+                                      const rId = typeof r.repairId === "object" 
+                                        ? (r.repairId?._id ?? r.repairId?.id) 
+                                        : r.repairId;
+                                      return rId === repairId;
+                                    }
+                                  );
+                                  const qualityData = modelRepair?.qualityPrices?.find(
+                                    (qp: any) => qp.id === quality
+                                  );
+                                  // Find quality details from repair data
+                                  const repairData = repairs.find((r) => r.id === repairId);
+                                  const qualityDetails = (repairData as any)?.qualityOptions?.find((q: any) => q.id === quality);
+                                  
+                                  return qualityData ? (
+                                    <Badge variant="outline" className="text-xs mt-1">
+                                      {qualityDetails?.name || qualityData.name || quality}
+                                    </Badge>
+                                  ) : null;
+                                })()}
                                 <p className="text-xs text-muted-foreground">
                                   {repair.duration}
                                 </p>
@@ -1867,13 +1943,26 @@ export default function GetAQuotePage() {
 
             // Get quality option details from the repair
             const repairData = repairs.find((r) => r.id === selectedRepairForQuality);
-            const qualityOptions = repairData?.qualityOptions || [];
+            const qualityOptions = (repairData as any)?.qualityOptions || [];
+            
+            // console.log("Selected Repair ID:", selectedRepairForQuality);
+            // console.log("Repair Data:", repairData);
+            // console.log("Quality Options from repair:", qualityOptions);
+            // console.log("All repairs array:", repairs.map(r => ({ id: r.id, name: (r as any).name })));
 
             return (
               <div className="grid gap-4 py-4">
                 {modelRepair.qualityPrices.map((qualityPrice: any) => {
-                  // Find matching quality option details
+                  // Debug logging
+                  // console.log("Quality Price Data:", qualityPrice);
+                  // console.log("Quality Name:", qualityPrice.name);
+                  // console.log("Quality Description:", qualityPrice.description);
+                  // console.log("Quality Duration:", qualityPrice.duration);
+                  // console.log("Quality Price:", qualityPrice.price);
+                  
+                  // Find matching quality option details from repair data
                   const qualityDetails = qualityOptions.find((q: any) => q.id === qualityPrice.id);
+                  // console.log("Matching quality details for id", qualityPrice.id, ":", qualityDetails);
                   
                   return (
                     <Card
@@ -1884,10 +1973,17 @@ export default function GetAQuotePage() {
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex-1">
-                            <h3 className="font-bold text-xl mb-2">{qualityPrice.name}</h3>
+                            <h3 className="font-bold text-xl mb-2">
+                              {qualityDetails?.name || qualityPrice.name || qualityPrice.id}
+                            </h3>
                             {qualityDetails?.description && (
                               <p className="text-sm text-muted-foreground">
                                 {qualityDetails.description}
+                              </p>
+                            )}
+                            {qualityPrice.duration && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Duration: {qualityPrice.duration}
                               </p>
                             )}
                           </div>
