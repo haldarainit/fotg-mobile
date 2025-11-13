@@ -19,6 +19,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import Link from "next/link"
 
 const data = {
   navMain: [
@@ -61,10 +62,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               asChild
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
-              <a href="#">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Fotg Mobile</span>
-              </a>
+              <Link href="/admin" className="flex items-center gap-2">
+                <Image src="/logo.png" alt="Fotg Mobile" width={28} height={28} className="object-contain" />
+                <span className="text-base font-semibold">Fotg Mobile Admin</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
