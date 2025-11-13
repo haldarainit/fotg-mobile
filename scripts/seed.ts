@@ -1,5 +1,6 @@
 import connectDB from "../lib/mongodb";
 import Review from "../models/Review";
+import Settings from "../models/Settings";
 
 const seedReviews = [
   {
@@ -85,6 +86,18 @@ async function seedDatabase() {
     // Display count
     const count = await Review.countDocuments();
     console.log(`Total reviews in database: ${count}`);
+
+    // Initialize default settings if not exists
+    const existingSettings = await Settings.findOne();
+    if (!existingSettings) {
+      await Settings.create({
+        taxPercentage: 0,
+        discountRules: [],
+      });
+      console.log("Default settings initialized");
+    } else {
+      console.log("Settings already exist");
+    }
 
     process.exit(0);
   } catch (error) {

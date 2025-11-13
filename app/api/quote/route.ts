@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
       email,
       notes,
       total,
+      pricing,
     } = await request.json();
 
     // Validate required fields
@@ -152,12 +153,55 @@ export async function POST(request: NextRequest) {
             }
 
             <!-- Pricing Summary -->
-            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 8px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-              <p style="color: rgba(255,255,255,0.9); margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">TOTAL AMOUNT</p>
-              <p style="color: white; margin: 0; font-size: 42px; font-weight: bold;">$${total.toFixed(
-                2
-              )}</p>
-              <p style="color: rgba(255,255,255,0.8); margin: 10px 0 0 0; font-size: 12px;">Including 0% tax</p>
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+              ${
+                pricing
+                  ? `
+              <div style="color: white; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.3);">
+                  <span style="color: rgba(255,255,255,0.9);">Subtotal:</span>
+                  <span style="font-weight: bold;">$${pricing.subtotal.toFixed(2)}</span>
+                </div>
+                ${
+                  pricing.discount > 0
+                    ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.3);">
+                  <span style="color: rgba(255,255,255,0.9);">Discount ${pricing.discountRuleName ? `(${pricing.discountRuleName})` : ""}:</span>
+                  <span style="font-weight: bold; color: #4ade80;">-$${pricing.discount.toFixed(2)}</span>
+                </div>
+                `
+                    : ""
+                }
+                ${
+                  pricing.taxPercentage > 0
+                    ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.3);">
+                  <span style="color: rgba(255,255,255,0.9);">Tax (${pricing.taxPercentage}%):</span>
+                  <span style="font-weight: bold;">$${pricing.tax.toFixed(2)}</span>
+                </div>
+                `
+                    : ""
+                }
+              </div>
+              `
+                  : ""
+              }
+              <div style="text-align: center;">
+                <p style="color: rgba(255,255,255,0.9); margin: 0 0 10px 0; font-size: 16px; font-weight: bold;">TOTAL AMOUNT</p>
+                <p style="color: white; margin: 0; font-size: 42px; font-weight: bold;">$${total.toFixed(
+                  2
+                )}</p>
+                ${
+                  pricing && pricing.taxPercentage > 0
+                    ? `<p style="color: rgba(255,255,255,0.8); margin: 10px 0 0 0; font-size: 12px;">Including ${pricing.taxPercentage}% tax</p>`
+                    : ""
+                }
+                ${
+                  pricing && pricing.discount > 0
+                    ? `<p style="color: #4ade80; margin: 5px 0 0 0; font-size: 14px; font-weight: bold;">Customer saved $${pricing.discount.toFixed(2)}!</p>`
+                    : ""
+                }
+              </div>
             </div>
 
             <!-- Footer -->

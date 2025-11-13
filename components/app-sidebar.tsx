@@ -7,6 +7,7 @@ import {
   IconStar,
   IconInnerShadowTop,
   IconHome,
+  IconSettings,
 } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -40,6 +41,11 @@ const data = {
       title: "Contact",
       url: "/admin/contact",
       icon: IconMessageCircle,
+    },
+    {
+      title: "Settings",
+      url: "/admin/settings",
+      icon: IconSettings,
     },
   ],
 

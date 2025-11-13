@@ -160,6 +160,7 @@ export default function GetAQuotePage() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [models, setModels] = useState<DeviceModel[]>([]);
   const [repairs, setRepairs] = useState<RepairItem[]>([]);
+  const [settings, setSettings] = useState<any>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Fetch brands, models, and repairs from backend
@@ -167,6 +168,13 @@ export default function GetAQuotePage() {
     const fetchData = async () => {
       setIsLoadingData(true);
       try {
+        // Fetch settings (tax and discounts)
+        const settingsRes = await fetch("/api/admin/settings");
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setSettings(settingsData.data);
+        }
+
         // Fetch brands
         const brandsRes = await fetch("/api/admin/brands?activeOnly=true");
         if (brandsRes.ok) {
@@ -496,10 +504,86 @@ export default function GetAQuotePage() {
     return modelRepair.basePrice || 0;
   };
 
-  const calculateTotal = () => {
-    return selectedRepairs.reduce((total, repairId) => {
+  const calculatePricing = () => {
+    const subtotal = selectedRepairs.reduce((total, repairId) => {
       return total + getRepairPrice(repairId);
     }, 0);
+
+    // Calculate applicable discount
+    let discount = 0;
+    let appliedDiscountRule = null;
+
+    if (settings && settings.discountRules) {
+      // Find the best discount rule that applies
+      for (const rule of settings.discountRules) {
+        if (!rule.active) continue;
+
+        let ruleApplies = true;
+
+        // Check minimum repairs requirement
+        if (rule.minRepairs && selectedRepairs.length < rule.minRepairs) {
+          ruleApplies = false;
+        }
+
+        // Check specific repairs requirement
+        if (rule.specificRepairs && rule.specificRepairs.length > 0) {
+          const hasAllRequired = rule.specificRepairs.every((reqRepairId: string) =>
+            selectedRepairs.some((selRepairId) => {
+              // Get the actual repair ID from the model's repair data
+              const modelRepair = (selectedModel as any)?.repairs?.find(
+                (r: any) => {
+                  const rId = typeof r.repairId === "object" 
+                    ? (r.repairId?._id ?? r.repairId?.id) 
+                    : r.repairId;
+                  return rId === selRepairId;
+                }
+              );
+              const actualRepairId = typeof modelRepair?.repairId === "object"
+                ? (modelRepair.repairId?._id ?? modelRepair.repairId?.id)
+                : modelRepair?.repairId;
+              return actualRepairId === reqRepairId || selRepairId === reqRepairId;
+            })
+          );
+          if (!hasAllRequired) {
+            ruleApplies = false;
+          }
+        }
+
+        if (ruleApplies) {
+          let ruleDiscount = 0;
+          if (rule.type === "percentage") {
+            ruleDiscount = (subtotal * rule.value) / 100;
+          } else {
+            ruleDiscount = rule.value;
+          }
+
+          // Use the best discount (highest value)
+          if (ruleDiscount > discount) {
+            discount = ruleDiscount;
+            appliedDiscountRule = rule;
+          }
+        }
+      }
+    }
+
+    // Calculate tax
+    const taxPercentage = settings?.taxPercentage || 0;
+    const afterDiscount = subtotal - discount;
+    const tax = (afterDiscount * taxPercentage) / 100;
+    const total = afterDiscount + tax;
+
+    return {
+      subtotal,
+      discount,
+      discountRule: appliedDiscountRule,
+      tax,
+      taxPercentage,
+      total,
+    };
+  };
+
+  const calculateTotal = () => {
+    return calculatePricing().total;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -533,6 +617,9 @@ export default function GetAQuotePage() {
         (c) => c.id === selectedColor
       );
 
+      // Get pricing breakdown
+      const pricing = calculatePricing();
+
       const quoteData = {
         deviceType: selectedDeviceType,
         brand: {
@@ -555,7 +642,15 @@ export default function GetAQuotePage() {
         phone: formData.phone,
         email: formData.email,
         notes: formData.notes,
-        total: calculateTotal(),
+        pricing: {
+          subtotal: pricing.subtotal,
+          discount: pricing.discount,
+          discountRuleName: pricing.discountRule?.name,
+          tax: pricing.tax,
+          taxPercentage: pricing.taxPercentage,
+          total: pricing.total,
+        },
+        total: pricing.total,
       };
 
       const response = await fetch("/api/quote", {
@@ -1563,24 +1658,51 @@ export default function GetAQuotePage() {
                   </div>
 
                   <div className="pt-4 space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <p className="text-muted-foreground">Sub-total</p>
-                      <p className="font-semibold">${calculateTotal()}</p>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <p className="text-muted-foreground">Combo discount</p>
-                      <p className="text-primary font-semibold">$0</p>
-                    </div>
-                    <div className="flex items-center justify-between text-sm pb-2 border-b">
-                      <p className="text-muted-foreground">Tax (0%)</p>
-                      <p className="font-semibold">$0</p>
-                    </div>
-                    <div className="flex items-center justify-between pt-2">
-                      <p className="text-lg font-bold">Total</p>
-                      <p className="text-3xl font-bold text-primary">
-                        ${calculateTotal()}
-                      </p>
-                    </div>
+                    {(() => {
+                      const pricing = calculatePricing();
+                      return (
+                        <>
+                          <div className="flex items-center justify-between text-sm">
+                            <p className="text-muted-foreground">Subtotal</p>
+                            <p className="font-semibold">${pricing.subtotal.toFixed(2)}</p>
+                          </div>
+                          {pricing.discount > 0 && (
+                            <div className="flex items-center justify-between text-sm">
+                              <p className="text-muted-foreground">
+                                Discount
+                                {pricing.discountRule && (
+                                  <span className="ml-1 text-xs">
+                                    (
+                                      {/* {pricing.discountRule.name} */}
+                                    {pricing.discountRule.type === "percentage"
+                                      ? ` ${pricing.discountRule.value}%`
+                                      : ` $${pricing.discountRule.value}`
+                                    })
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-green-600 font-semibold">
+                                -${pricing.discount.toFixed(2)}
+                              </p>
+                            </div>
+                          )}
+                          {pricing.taxPercentage > 0 && (
+                            <div className="flex items-center justify-between text-sm">
+                              <p className="text-muted-foreground">
+                                Tax ({pricing.taxPercentage}%)
+                              </p>
+                              <p className="font-semibold">${pricing.tax.toFixed(2)}</p>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <p className="text-lg font-bold">Total</p>
+                            <p className="text-3xl font-bold text-primary">
+                              ${pricing.total.toFixed(2)}
+                            </p>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   <Button
@@ -1874,25 +1996,62 @@ export default function GetAQuotePage() {
                     </div>
 
                     <div className="border-t pt-4 space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <p className="text-muted-foreground">Sub-total</p>
-                        <p className="font-semibold">${calculateTotal()}</p>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <p className="text-muted-foreground">Tax (0%)</p>
-                        <p className="font-semibold">$0</p>
-                      </div>
-                      <div className="bg-primary/10 p-4 rounded-lg mt-3">
-                        <div className="flex items-center justify-between">
-                          <p className="font-bold text-lg">Total</p>
-                          <p className="text-3xl font-bold text-primary">
-                            ${calculateTotal()}
-                          </p>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Incl. 0% tax
-                        </p>
-                      </div>
+                      {(() => {
+                        const pricing = calculatePricing();
+                        return (
+                          <>
+                            <div className="flex items-center justify-between text-sm">
+                              <p className="text-muted-foreground">Subtotal</p>
+                              <p className="font-semibold">${pricing.subtotal.toFixed(2)}</p>
+                            </div>
+                            {pricing.discount > 0 && (
+                              <div className="flex items-center justify-between text-sm">
+                                <p className="text-muted-foreground">
+                                  Discount
+                                  {pricing.discountRule && (
+                                    <span className="ml-1 text-xs">
+                                      ({pricing.discountRule.name}
+                                      {pricing.discountRule.type === "percentage"
+                                        ? ` — ${pricing.discountRule.value}%`
+                                        : ` — $${pricing.discountRule.value}`
+                                      })
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-green-600 font-semibold">
+                                  -${pricing.discount.toFixed(2)}
+                                </p>
+                              </div>
+                            )}
+                            {pricing.taxPercentage > 0 && (
+                              <div className="flex items-center justify-between text-sm">
+                                <p className="text-muted-foreground">
+                                  Tax ({pricing.taxPercentage}%)
+                                </p>
+                                <p className="font-semibold">${pricing.tax.toFixed(2)}</p>
+                              </div>
+                            )}
+                            <div className="bg-primary/10 p-4 rounded-lg mt-3">
+                              <div className="flex items-center justify-between">
+                                <p className="font-bold text-lg">Total</p>
+                                <p className="text-3xl font-bold text-primary">
+                                  ${pricing.total.toFixed(2)}
+                                </p>
+                              </div>
+                              {pricing.taxPercentage > 0 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Incl. {pricing.taxPercentage}% tax
+                                </p>
+                              )}
+                              {pricing.discount > 0 && (
+                                <p className="text-xs text-green-600 mt-1">
+                                  You saved ${pricing.discount.toFixed(2)}!
+                                </p>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
                   </Card>
 
