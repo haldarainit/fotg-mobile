@@ -21,7 +21,7 @@ interface NavMenuItemsProps {
 }
 
 const NavMenuItems = ({ className }: NavMenuItemsProps) => (
-  <div className={`flex flex-col gap-1 md:flex-row ${className ?? ""}`}>
+  <div className={`flex flex-col gap-1 lg:flex-row ${className ?? ""}`}>
     {MENU_ITEMS.map(({ label, href }) => (
       <Link key={label} href={href}>
         <Button variant="ghost" className="w-full md:w-auto">
@@ -39,8 +39,8 @@ export function LpNavbar1() {
   const toggleMenu = () => setIsMenuOpen((prev) => !prev);
 
   return (
-    <nav className="bg-background sticky top-0 isolate z-50 border-b py-3.5 md:py-4">
-      <div className="relative container m-auto flex flex-col justify-between gap-4 px-6 md:flex-row md:items-center md:gap-6">
+    <nav className="bg-background sticky top-0 isolate z-50 border-b py-3.5 lg:py-4">
+      <div className="relative container m-auto flex flex-col justify-between gap-4 px-6 lg:flex-row lg:items-center lg:gap-6">
         <div className="flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <Image
@@ -56,7 +56,7 @@ export function LpNavbar1() {
           </Link>
           <Button
             variant="ghost"
-            className="flex size-9 items-center justify-center md:hidden"
+            className="flex size-9 items-center justify-center lg:hidden"
             onClick={toggleMenu}
             aria-label={isMenuOpen ? "Close menu" : "Open menu"}
           >
@@ -65,7 +65,7 @@ export function LpNavbar1() {
         </div>
 
         {/* Desktop Navigation */}
-        <div className="hidden w-full flex-row justify-end gap-5 md:flex">
+        <div className="hidden w-full flex-row justify-end gap-5 lg:flex">
           <NavMenuItems />
           <Link href="/contact-us">
             <Button>Get In Touch</Button>
@@ -91,7 +91,7 @@ export function LpNavbar1() {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="flex w-full flex-col justify-end gap-5 pb-2.5 md:hidden">
+          <div className="flex w-full flex-col justify-end gap-5 pb-2.5 lg:hidden">
             <NavMenuItems />
             <Link href="/get-in-touch">
               <Button className="w-full">Get In Touch</Button>
