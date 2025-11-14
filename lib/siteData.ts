@@ -255,7 +255,7 @@ export const siteData = {
     phone2: "+1 (214) 656-9700",
     email: "support@fotgmobile.com",
     address: "123 Repair Street, Tech City, TC 12345",
-    hours: "Mon-Fri: 9AM-7PM, Sat: 10AM-6PM, Sun: Closed",
+    hours: "Open 24/7 - Always Available",
     social: {
       facebook: "https://facebook.com/fotgmobile",
       instagram: "https://www.instagram.com/fotg.mobile?igsh=MXVvNjZyN2FibTRmNg%3D%3D&utm_source=qr",
