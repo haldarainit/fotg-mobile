@@ -133,6 +133,31 @@ export default function GetAQuotePage() {
   const [availableSlots, setAvailableSlots] = useState<Array<{id: string, label: string, startTime: string, endTime: string, active: boolean, isAvailable: boolean, isBooked: boolean}>>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
+  // Helper function to check if a time slot is in the past
+  const isTimeSlotPast = (date: Date, timeString: string): boolean => {
+    const now = new Date();
+    const slotDate = new Date(date);
+    
+    // Parse time string (format: "HH:MM AM/PM")
+    const timeMatch = timeString.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!timeMatch) return false;
+    
+    let hours = parseInt(timeMatch[1]);
+    const minutes = parseInt(timeMatch[2]);
+    const period = timeMatch[3].toUpperCase();
+    
+    // Convert to 24-hour format
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    slotDate.setHours(hours, minutes, 0, 0);
+    
+    return slotDate < now;
+  };
+
   // Shipping address for pickup service
   const [shippingAddress, setShippingAddress] = useState({
     houseNumber: "",
@@ -1955,29 +1980,39 @@ export default function GetAQuotePage() {
                               onValueChange={setBookingTimeSlot}
                               className="grid grid-cols-2 gap-2"
                             >
-                              {availableSlots.map((slot) => (
-                                <label
-                                  key={slot.id}
-                                  className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-all ${
-                                    slot.isBooked
-                                      ? "border-red-300 bg-red-50 cursor-not-allowed opacity-60"
-                                      : bookingTimeSlot === slot.label
-                                      ? "border-primary bg-primary/5 cursor-pointer"
-                                      : "hover:border-primary/50 cursor-pointer"
-                                  }`}
-                                >
-                                  <RadioGroupItem
-                                    value={slot.label}
-                                    disabled={slot.isBooked}
-                                  />
-                                  <span className="flex-1">{slot.label}</span>
-                                  {slot.isBooked && (
-                                    <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-1 rounded">
-                                      BOOKED
-                                    </span>
-                                  )}
-                                </label>
-                              ))}
+                              {availableSlots.map((slot) => {
+                                const isPast = isTimeSlotPast(bookingDate, slot.label);
+                                const isDisabled = slot.isBooked || isPast;
+                                
+                                return (
+                                  <label
+                                    key={slot.id}
+                                    className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-all ${
+                                      isDisabled
+                                        ? "border-red-300 bg-red-50 cursor-not-allowed opacity-60"
+                                        : bookingTimeSlot === slot.label
+                                        ? "border-primary bg-primary/5 cursor-pointer"
+                                        : "hover:border-primary/50 cursor-pointer"
+                                    }`}
+                                  >
+                                    <RadioGroupItem
+                                      value={slot.label}
+                                      disabled={isDisabled}
+                                    />
+                                    <span className="flex-1">{slot.label}</span>
+                                    {slot.isBooked && (
+                                      <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-1 rounded">
+                                        BOOKED
+                                      </span>
+                                    )}
+                                    {isPast && !slot.isBooked && (
+                                      <span className="text-xs text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
+                                        PAST
+                                      </span>
+                                    )}
+                                  </label>
+                                );
+                              })}
                             </RadioGroup>
                           )}
                         </div>

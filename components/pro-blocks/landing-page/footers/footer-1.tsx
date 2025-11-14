@@ -67,28 +67,22 @@ export function Footer1() {
                 Home
               </Link>
               <Link
-                href="#services"
+                href="/get-a-quote"
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
-                Services
+                Get A Quote
               </Link>
               <Link
-                href="#how-it-works"
+                href="/reviews"
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
-                How it works
+                Reviews
               </Link>
               <Link
-                href="#pricing"
+                href="/contact-us"
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
-                Pricing
-              </Link>
-              <Link
-                href="#faq"
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                FAQ
+                Contact Us
               </Link>
             </nav>
           </div>
