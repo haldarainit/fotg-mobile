@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
 
     const models = await DeviceModel.find(query)
       .populate("brandId", "name logo")
-      .populate({ path: "repairs.repairId", select: "name basePrice hasQualityOptions qualityOptions" })
+      // Provide the RepairItem model explicitly to ensure it's used during populate
+      .populate({ path: "repairs.repairId", model: RepairItem, select: "name basePrice hasQualityOptions qualityOptions" })
       .sort({ name: 1 })
       .lean();
 

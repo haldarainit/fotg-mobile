@@ -11,8 +11,10 @@ export interface DeviceModel {
   image: string;
   variants: string[];
   brandId: string;
+  brandName?: string; // Added for display purposes
   deviceType: "smartphone" | "tablet" | "laptop";
   colors: { id: string; name: string; hex: string }[];
+  repairs?: any[]; // Added for pricing data
 }
 
 export interface RepairItem {

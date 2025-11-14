@@ -177,21 +177,29 @@ export default function GetAQuotePage() {
   const [models, setModels] = useState<DeviceModel[]>([]);
   const [repairs, setRepairs] = useState<RepairItem[]>([]);
   const [settings, setSettings] = useState<any>(null);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
+  const [isLoadingModels, setIsLoadingModels] = useState(true);
+  const [isLoadingRepairs, setIsLoadingRepairs] = useState(true);
+
+  // Combined loading state for backward compatibility
+  const isLoadingData = isLoadingBrands || isLoadingModels || isLoadingRepairs;
 
   // Fetch brands, models, and repairs from backend
   useEffect(() => {
     const fetchData = async () => {
-      setIsLoadingData(true);
       try {
         // Fetch settings (tax and discounts)
+        setIsLoadingSettings(true);
         const settingsRes = await fetch("/api/admin/settings");
         if (settingsRes.ok) {
           const settingsData = await settingsRes.json();
           setSettings(settingsData.data);
         }
+        setIsLoadingSettings(false);
 
         // Fetch brands
+        setIsLoadingBrands(true);
         const brandsRes = await fetch("/api/admin/brands?activeOnly=true");
         if (brandsRes.ok) {
           const brandsData = await brandsRes.json();
@@ -206,8 +214,10 @@ export default function GetAQuotePage() {
           }));
           setBrands(normalizedBrands);
         }
+        setIsLoadingBrands(false);
 
         // Fetch models (with populated repairs and pricing)
+        setIsLoadingModels(true);
         const modelsRes = await fetch("/api/admin/models?activeOnly=true");
         if (modelsRes.ok) {
           const modelsData = await modelsRes.json();
@@ -234,12 +244,16 @@ export default function GetAQuotePage() {
             
             // Handle brandId - it can be an ObjectId string or a populated object
             let extractedBrandId = "";
+            let extractedBrandName = "";
             if (typeof m.brandId === "string") {
               extractedBrandId = m.brandId;
             } else if (m.brandId && typeof m.brandId === "object") {
               // brandId is populated with brand object
               extractedBrandId = m.brandId._id ?? m.brandId.id ?? String(m.brandId._id);
+              extractedBrandName = m.brandId.name || m.brandId.title || "";
             }
+            // Fallbacks if API uses different fields
+            extractedBrandName = extractedBrandName || m.brandName || m.brand?.name || "";
 
             return {
               id: m._id ?? m.id ?? String(m._id ?? m.id ?? ""),
@@ -247,6 +261,7 @@ export default function GetAQuotePage() {
               image: m.image || m.images?.[0] || "",
               variants: m.variants || m.modelCodes || [],
               brandId: extractedBrandId,
+              brandName: extractedBrandName,
               deviceType: m.deviceType || m.type || "smartphone",
               colors: m.colors || m.colorOptions || [],
               // Pass through the raw repairs data for pricing
@@ -255,8 +270,10 @@ export default function GetAQuotePage() {
           });
           setModels(normalizedModels);
         }
+        setIsLoadingModels(false);
 
         // Fetch repairs
+        setIsLoadingRepairs(true);
         const repairsRes = await fetch("/api/admin/repairs?activeOnly=true");
         if (repairsRes.ok) {
           const repairsData = await repairsRes.json();
@@ -282,13 +299,17 @@ export default function GetAQuotePage() {
           // console.log("Normalized repairs:", normalizedRepairs);
           setRepairs(normalizedRepairs);
         }
+        setIsLoadingRepairs(false);
       } catch (error) {
         // console.error("Error fetching data:", error);
         toast.error("Failed to load data", {
           description: "Some data couldn't be loaded. Please refresh the page.",
         });
-      } finally {
-        setIsLoadingData(false);
+        // Reset loading states on error
+        setIsLoadingSettings(false);
+        setIsLoadingBrands(false);
+        setIsLoadingModels(false);
+        setIsLoadingRepairs(false);
       }
     };
 
@@ -388,14 +409,24 @@ export default function GetAQuotePage() {
     const brand = brands.find((b) => b.id === model.brandId);
     if (brand) {
       setSelectedBrand(brand);
-      setSelectedModel(model);
-      if (model.colors && model.colors.length > 0) {
-        setSelectedColor(model.colors[0].id);
-      }
-      setSearchQuery("");
-      setSearchResults({ brands: [], models: [] });
-      setStep("color");
+    } else {
+      // Fallback: use brandName from the model if available
+      const fallbackBrand = {
+        id: (model as any).brandId || "",
+        name: (model as any).brandName || (model as any).brand?.name || "",
+        logo: "",
+        deviceTypes: [],
+      } as Brand;
+      setSelectedBrand(fallbackBrand);
     }
+
+    setSelectedModel(model);
+    if (model.colors && model.colors.length > 0) {
+      setSelectedColor(model.colors[0].id);
+    }
+    setSearchQuery("");
+    setSearchResults({ brands: [], models: [] });
+    setStep("color");
   };
 
   const getFilteredModels = () => {
@@ -880,7 +911,15 @@ export default function GetAQuotePage() {
           {isLoadingData && (
             <div className="flex flex-col items-center justify-center py-20">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-              <p className="text-muted-foreground">Loading devices and repairs...</p>
+              <p className="text-muted-foreground">
+                {isLoadingBrands && isLoadingModels && isLoadingRepairs
+                  ? "Loading devices and repairs..."
+                  : isLoadingBrands
+                  ? "Loading device brands..."
+                  : isLoadingModels
+                  ? "Loading device models..."
+                  : "Loading repair services..."}
+              </p>
             </div>
           )}
 
@@ -1349,7 +1388,7 @@ export default function GetAQuotePage() {
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
                 <h1 className="heading-lg">
-                  {selectedBrand.name} -{" "}
+                  {(selectedBrand && selectedBrand.name) || selectedModel?.brandName || ""} -{" "}
                   <span className="text-primary">Select Model</span>
                 </h1>
               </div>
@@ -1677,7 +1716,7 @@ export default function GetAQuotePage() {
                         {selectedModel?.name}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {selectedBrand?.name}
+                        {selectedBrand?.name || selectedModel?.brandName}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Color:{" "}

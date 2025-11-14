@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 import connectDB from "@/lib/mongodb";
 import Booking from "@/models/Booking";
+import RepairItem from "@/models/RepairItem";
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,6 +70,58 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Normalize and validate repairs before saving
+    const normalizedRepairs = await Promise.all(
+      (repairs || []).map(async (r: any) => {
+        // Try common fields
+        let repairId = r.repairId || r.id || (r.repair && (r.repair._id || r.repair.id));
+        let repairName = r.repairName || r.name || (r.repair && r.repair.name);
+        const price = r.price ?? r.basePrice ?? 0;
+        let duration = r.duration || (r.repair && r.repair.duration) || "";
+        const partQuality = r.partQuality ? { id: r.partQuality.id, name: r.partQuality.name } : undefined;
+
+        // If repairId present but name missing, fetch from RepairItem
+        if (repairId && !repairName) {
+          try {
+            const found = await RepairItem.findById(repairId).lean();
+            if (found) {
+              repairName = found.name || repairName;
+              duration = duration || found.duration || "";
+            }
+          } catch (e) {
+            // ignore lookup errors, will validate below
+          }
+        }
+
+        // If name present but id missing, try to look up by name
+        if (!repairId && repairName) {
+          try {
+            const foundByName = await RepairItem.findOne({ name: repairName }).lean();
+            if (foundByName) {
+              repairId = String(foundByName._id);
+              duration = duration || foundByName.duration || "";
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (!repairId || !repairName) {
+          throw new Error(
+            `Invalid repair item in booking payload: missing id or name (received: ${JSON.stringify(r)})`
+          );
+        }
+
+        return {
+          repairId: String(repairId),
+          repairName,
+          price,
+          duration,
+          partQuality,
+        };
+      })
+    );
+
     // Save booking to database
     const booking = await Booking.create({
       firstName,
@@ -87,7 +140,7 @@ export async function POST(request: NextRequest) {
       bookingDate: serviceMethod === "location" ? new Date(bookingDate) : undefined,
       bookingTimeSlot: serviceMethod === "location" ? bookingTimeSlot : undefined,
       shippingAddress: serviceMethod === "pickup" ? shippingAddress : undefined,
-      repairs,
+      repairs: normalizedRepairs,
       pricing,
       notes,
       status: "pending",
