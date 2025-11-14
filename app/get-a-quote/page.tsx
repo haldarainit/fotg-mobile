@@ -222,7 +222,7 @@ export default function GetAQuotePage() {
 
         // Fetch models (with populated repairs and pricing)
         setIsLoadingModels(true);
-        const modelsRes = await fetch("/api/admin/models?activeOnly=true");
+        const modelsRes = await fetch("/api/admin/models?activeOnly=true&limit=1000");
         if (modelsRes.ok) {
           const modelsData = await modelsRes.json();
           // console.log("Fetched models for quote:", modelsData);

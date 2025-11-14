@@ -66,6 +66,10 @@ export function ModelsManagement() {
   const [editingModel, setEditingModel] = useState<DeviceModel | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalModels, setTotalModels] = useState(0);
+  const modelsPerPage = 20;
 
   const [formData, setFormData] = useState({
     name: "",
@@ -85,12 +89,13 @@ export function ModelsManagement() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentPage]); // Refetch when page changes
 
   const fetchData = async () => {
     try {
+      setIsLoading(true);
       const [modelsRes, brandsRes, repairsRes] = await Promise.all([
-          fetch("/api/admin/models"),
+          fetch(`/api/admin/models?page=${currentPage}&limit=${modelsPerPage}`),
           fetch("/api/admin/brands?activeOnly=true"),
           fetch("/api/admin/repairs"),
         ]);
@@ -99,6 +104,14 @@ export function ModelsManagement() {
         const data = await modelsRes.json();
         console.log("Fetched models:", data);
         setModels(data.data || data.models || []);
+        if (data.pagination) {
+          setTotalPages(data.pagination.totalPages);
+          setTotalModels(data.pagination.total);
+        }
+      } else {
+        const errorData = await modelsRes.json();
+        console.error("Error fetching models:", errorData);
+        toast.error(`Failed to load models: ${errorData.details || errorData.error}`);
       }
 
       if (brandsRes.ok) {
@@ -861,6 +874,59 @@ export function ModelsManagement() {
             )}
           </TableBody>
         </Table>
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t">
+            <div className="text-sm text-muted-foreground">
+              Showing {models.length > 0 ? ((currentPage - 1) * modelsPerPage) + 1 : 0} to {Math.min(currentPage * modelsPerPage, totalModels)} of {totalModels} models
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1 || isLoading}
+              >
+                Previous
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={currentPage === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setCurrentPage(pageNum)}
+                      disabled={isLoading}
+                      className="w-10"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages || isLoading}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

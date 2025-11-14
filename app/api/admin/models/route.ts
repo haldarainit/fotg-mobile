@@ -25,6 +25,9 @@ export async function GET(request: NextRequest) {
     const brandId = searchParams.get("brandId");
     const deviceType = searchParams.get("deviceType");
     const activeOnly = searchParams.get("activeOnly") === "true";
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "50");
+    const skip = (page - 1) * limit;
 
     let query: any = {};
     
@@ -40,51 +43,77 @@ export async function GET(request: NextRequest) {
       query.deviceType = deviceType;
     }
 
+    // Get total count for pagination
+    const total = await DeviceModel.countDocuments(query);
+
     const models = await DeviceModel.find(query)
       .populate("brandId", "name logo")
-      // Provide the RepairItem model explicitly to ensure it's used during populate
-      .populate({ path: "repairs.repairId", model: RepairItem, select: "name basePrice hasQualityOptions qualityOptions" })
+      .populate({ 
+        path: "repairs.repairId", 
+        model: RepairItem, 
+        select: "name basePrice hasQualityOptions qualityOptions" 
+      })
       .sort({ name: 1 })
-      .lean();
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec();
 
     // Enrich quality prices with details from repair quality options
     const enrichedModels = models.map((model: any) => {
       if (model.repairs && model.repairs.length > 0) {
-        model.repairs = model.repairs.map((repair: any) => {
-          if (repair.qualityPrices && repair.qualityPrices.length > 0 && repair.repairId) {
-            const repairItem = repair.repairId;
-            if (repairItem && repairItem.qualityOptions) {
-              repair.qualityPrices = repair.qualityPrices.map((qp: any) => {
-                const qualityOption = repairItem.qualityOptions.find((qo: any) => qo.id === qp.id);
-                if (qualityOption) {
-                  return {
-                    ...qp,
-                    name: qualityOption.name || qp.name,
-                    description: qualityOption.description,
-                    duration: repairItem.duration,
-                  };
-                }
-                return qp;
-              });
+        // Filter out repairs where repairId is null (deleted repairs)
+        model.repairs = model.repairs
+          .filter((repair: any) => repair.repairId != null)
+          .map((repair: any) => {
+            if (repair.qualityPrices && repair.qualityPrices.length > 0 && repair.repairId) {
+              const repairItem = repair.repairId;
+              if (repairItem && repairItem.qualityOptions && Array.isArray(repairItem.qualityOptions)) {
+                repair.qualityPrices = repair.qualityPrices
+                  .filter((qp: any) => qp != null && qp.id != null)
+                  .map((qp: any) => {
+                    const qualityOption = repairItem.qualityOptions.find((qo: any) => qo && qo.id === qp.id);
+                    if (qualityOption) {
+                      return {
+                        ...qp,
+                        name: qualityOption.name || qp.name,
+                        description: qualityOption.description,
+                        duration: repairItem.duration,
+                      };
+                    }
+                    return qp;
+                  });
+              }
             }
-          }
-          return repair;
-        });
+            return repair;
+          });
       }
       return model;
     });
 
-    console.log(`Fetched ${enrichedModels.length} models`);
+    console.log(`Fetched ${enrichedModels.length} models (page ${page} of ${Math.ceil(total / limit)})`);
 
     return NextResponse.json({
       success: true,
       data: enrichedModels,
       models: enrichedModels, // For backwards compatibility
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + enrichedModels.length < total,
+      },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching models:", error);
+    console.error("Error stack:", error.stack);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch models" },
+      { 
+        success: false, 
+        error: "Failed to fetch models",
+        details: process.env.NODE_ENV === "development" ? error.message : undefined
+      },
       { status: 500 }
     );
   }
