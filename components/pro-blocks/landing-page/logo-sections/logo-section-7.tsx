@@ -27,7 +27,7 @@ export function LogoSection10() {
                       alt={logoItem.alt}
                       width={120}
                       height={40}
-                      className="h-8 w-auto object-contain opacity-60 hover:opacity-100 transition-opacity filter grayscale hover:grayscale-0"
+                      className="h-8 w-auto object-contain "
                     />
                   </div>
                 );
