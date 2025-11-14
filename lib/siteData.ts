@@ -237,7 +237,7 @@ export const siteData = {
     phone: "+1 (325) 321-9502",
     phone2: "+1 (214) 656-9700",
     email: "support@fotgmobile.com",
-    address: "123 Repair Street, Tech City, TC 12345",
+    address: "Dallas, Texas, United States",
     hours: "Open 24/7 - Always Available",
     social: {
       facebook: "https://facebook.com/fotgmobile",
