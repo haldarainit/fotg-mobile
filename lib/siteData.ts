@@ -203,23 +203,6 @@ export const siteData = {
 
   testimonials: {
     headline: "What Our Customers Say",
-    list: [
-      {
-        name: "Sarah M.",
-        review: "FOTG Mobile saved my phone after I dropped it in the pool! They had it working perfectly within two days. Highly recommend!",
-        rating: 5,
-      },
-      {
-        name: "Rajesh K.",
-        review: "Quick, professional, and affordable. My screen looks brand new and the price was way better than I expected.",
-        rating: 5,
-      },
-      {
-        name: "Priya S.",
-        review: "I've used them twice now for different repairs. Always satisfied with the quality and speed of service.",
-        rating: 5,
-      },
-    ],
   },
 
   faq: {
