@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogIn, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
 import Link from "next/link";
 import { siteData } from "@/lib/siteData";
+import { useAuth } from "@/hooks/use-auth";
 
 const MENU_ITEMS = [
   { label: "Home", href: "/" },
@@ -33,6 +34,7 @@ const NavMenuItems = ({ className }: NavMenuItemsProps) => (
 
 export function LpNavbar1() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { isAuthenticated, isLoading } = useAuth();
 
   const toggleMenu = () => setIsMenuOpen((prev) => !prev);
 
@@ -68,6 +70,23 @@ export function LpNavbar1() {
           <Link href="/contact-us">
             <Button>Get In Touch</Button>
           </Link>
+          {!isLoading && (
+            isAuthenticated ? (
+              <Link href="/admin">
+                <Button variant="outline" className="gap-2">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/admin/login">
+                <Button variant="outline" className="gap-2">
+                  <LogIn className="h-4 w-4" />
+                  Admin Login
+                </Button>
+              </Link>
+            )
+          )}
         </div>
 
         {/* Mobile Navigation */}
@@ -77,6 +96,23 @@ export function LpNavbar1() {
             <Link href="/get-in-touch">
               <Button className="w-full">Get In Touch</Button>
             </Link>
+            {!isLoading && (
+              isAuthenticated ? (
+                <Link href="/admin">
+                  <Button variant="outline" className="w-full gap-2">
+                    <LayoutDashboard className="h-4 w-4" />
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/admin/login">
+                  <Button variant="outline" className="w-full gap-2">
+                    <LogIn className="h-4 w-4" />
+                    Admin Login
+                  </Button>
+                </Link>
+              )
+            )}
           </div>
         )}
       </div>
