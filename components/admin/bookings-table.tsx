@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Loader2, Eye, Trash2, Calendar, Clock, Package, MapPin } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Booking {
   _id: string;
@@ -69,6 +70,7 @@ interface Booking {
   };
   notes?: string;
   status: "pending" | "confirmed" | "in-progress" | "completed" | "cancelled";
+  bookingId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -79,21 +81,28 @@ export function BookingsTable() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchTicket, setSearchTicket] = useState("");
+  const [showCancelNoteDialog, setShowCancelNoteDialog] = useState(false);
+  const [cancelNote, setCancelNote] = useState("");
+  const [pendingStatusTarget, setPendingStatusTarget] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBookings();
-  }, [statusFilter]);
+  }, [statusFilter, searchTicket]);
 
   const fetchBookings = async () => {
     setIsLoading(true);
     try {
-      const url = statusFilter === "all" 
-        ? "/api/admin/bookings" 
-        : `/api/admin/bookings?status=${statusFilter}`;
+      const base = "/api/admin/bookings";
+      const params: string[] = [];
+      if (statusFilter && statusFilter !== "all") params.push(`status=${statusFilter}`);
+            if (searchTicket && searchTicket.trim()) params.push(`bookingId=${encodeURIComponent(searchTicket.trim())}`);
+      const url = params.length ? `${base}?${params.join("&")}` : base;
       
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
+        console.log("Fetched bookings data:", data);
         setBookings(data.data || []);
       } else {
         toast.error("Failed to load bookings");
@@ -106,14 +115,14 @@ export function BookingsTable() {
     }
   };
 
-  const updateBookingStatus = async (bookingId: string, status: string) => {
+  const updateBookingStatus = async (bookingId: string, status: string, note?: string) => {
     try {
       const response = await fetch("/api/admin/bookings", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ bookingId, status }),
+        body: JSON.stringify({ bookingId, status, note }),
       });
 
       if (response.ok) {
@@ -125,9 +134,23 @@ export function BookingsTable() {
       } else {
         toast.error("Failed to update booking status");
       }
+
+      
     } catch (error) {
       console.error("Error updating booking:", error);
       toast.error("Failed to update booking status");
+    }
+  };
+
+  const handleStatusChange = (value: string) => {
+    if (!selectedBooking) return;
+    if (value === "cancelled") {
+      // Open modal to collect cancellation note
+      setPendingStatusTarget("cancelled");
+      setCancelNote("");
+      setShowCancelNoteDialog(true);
+    } else {
+      updateBookingStatus(selectedBooking._id, value);
     }
   };
 
@@ -150,6 +173,11 @@ export function BookingsTable() {
       console.error("Error deleting booking:", error);
       toast.error("Failed to delete booking");
     }
+  };
+
+  const revertToPending = async (bookingId: string) => {
+    if (!confirm("Revert this booking to Pending status?")) return;
+    await updateBookingStatus(bookingId, "pending");
   };
 
   const getStatusBadgeVariant = (status: string) => {
@@ -204,8 +232,15 @@ export function BookingsTable() {
             View and manage all customer bookings
           </p>
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
+        <div className="flex items-center gap-2">
+          <input
+            placeholder="Search booking ID"
+            value={searchTicket}
+            onChange={(e) => setSearchTicket(e.target.value)}
+            className="border px-3 py-2 rounded w-48 text-sm"
+          />
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -216,13 +251,15 @@ export function BookingsTable() {
             <SelectItem value="completed">Completed</SelectItem>
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
-        </Select>
+          </Select>
+        </div>
       </div>
 
       <Card>
         <Table>
           <TableHeader>
-            <TableRow>
+              <TableRow>
+              <TableHead>Booking ID</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Device</TableHead>
               <TableHead>Service</TableHead>
@@ -236,13 +273,21 @@ export function BookingsTable() {
           <TableBody>
             {bookings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                   No bookings found
                 </TableCell>
               </TableRow>
             ) : (
-              bookings.map((booking) => (
+              bookings.map((booking) => {
+                console.log("Booking ID for row:", booking.bookingId);
+                return (
                 <TableRow key={booking._id}>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{booking.bookingId}</p>
+                      <p className="text-sm text-muted-foreground">Booking ID</p>
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div>
                       <p className="font-medium">
@@ -302,8 +347,10 @@ export function BookingsTable() {
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
+                );
+              })
+            )
+          }
           </TableBody>
         </Table>
       </Card>
@@ -491,7 +538,7 @@ export function BookingsTable() {
                 <div className="flex gap-2">
                   <Select
                     value={selectedBooking.status}
-                    onValueChange={(value) => updateBookingStatus(selectedBooking._id, value)}
+                    onValueChange={handleStatusChange}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue />
@@ -504,8 +551,45 @@ export function BookingsTable() {
                       <SelectItem value="cancelled">Cancelled</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Button variant="ghost" onClick={() => revertToPending(selectedBooking._id)}>
+                    Revert
+                  </Button>
                 </div>
               </div>
+
+              {/* Cancellation Note Modal */}
+              <Dialog open={showCancelNoteDialog} onOpenChange={setShowCancelNoteDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Send Cancellation Note</DialogTitle>
+                    <DialogDescription>Enter an optional message to send to the customer with the cancellation.</DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="Write a brief cancellation note to the customer..."
+                      value={cancelNote}
+                      onChange={(e: any) => setCancelNote(e.target.value)}
+                      className="min-h-[120px]"
+                    />
+
+                    <div className="flex justify-end gap-2 pt-2">
+                      <Button variant="outline" onClick={() => setShowCancelNoteDialog(false)}>Cancel</Button>
+                      <Button
+                        onClick={async () => {
+                          if (!selectedBooking) return;
+                          await updateBookingStatus(selectedBooking._id, "cancelled", cancelNote || undefined);
+                          setShowCancelNoteDialog(false);
+                          // update local selected booking status
+                          setSelectedBooking({ ...selectedBooking, status: "cancelled" } as any);
+                        }}
+                      >
+                        Send & Cancel Booking
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               {/* Actions */}
               <div className="flex justify-between border-t pt-4">

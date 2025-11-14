@@ -70,7 +70,7 @@ export async function PUT(request: NextRequest) {
       if (discountRules !== undefined) {
         // Clear existing rules and add new ones to ensure proper subdocument handling
         settings.discountRules.splice(0, settings.discountRules.length);
-        discountRules.forEach(rule => {
+        discountRules.forEach((rule: any) => {
           settings.discountRules.push(rule);
         });
         console.log("About to save discountRules:", discountRules);

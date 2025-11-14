@@ -122,6 +122,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Generate a unique booking ID like 'BK-' + 6 digits
+    const generateBookingId = () => {
+      const prefix = "BK-";
+      const rand = Math.floor(Math.random() * 900000) + 100000; // 6 digits
+      return prefix + rand;
+    };
+
+    let bookingId = generateBookingId();
+    // Ensure uniqueness for bookingId
+    let attempts = 0;
+    while (await Booking.findOne({ bookingId }) && attempts < 5) {
+      bookingId = generateBookingId();
+      attempts++;
+    }
+
     // Create booking
     const booking = await Booking.create({
       firstName,
@@ -141,6 +156,7 @@ export async function POST(request: NextRequest) {
       bookingTimeSlot: serviceMethod === "location" ? bookingTimeSlot : undefined,
       shippingAddress: serviceMethod === "pickup" ? shippingAddress : undefined,
       repairs,
+      bookingId,
       pricing,
       notes,
       status: "pending",

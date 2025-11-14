@@ -56,6 +56,7 @@ export interface IBooking extends Document {
   // Additional
   notes?: string;
   status: "pending" | "confirmed" | "in-progress" | "completed" | "cancelled";
+  bookingId: string;
   
   createdAt: Date;
   updatedAt: Date;
@@ -114,6 +115,12 @@ const BookingSchema = new Schema<IBooking>(
         },
       },
     ],
+    // Unique booking ID for internal use
+    bookingId: {
+      type: String,
+      required: false,
+      unique: true,
+    },
     
     // Pricing
     pricing: {

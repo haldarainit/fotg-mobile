@@ -122,7 +122,22 @@ export async function POST(request: NextRequest) {
       })
     );
 
-    // Save booking to database
+    // Generate a unique booking ID like 'BK-' + 6 digits
+    const generateBookingId = () => {
+      const prefix = "BK-";
+      const rand = Math.floor(Math.random() * 900000) + 100000; // 6 digits
+      return prefix + rand;
+    };
+
+    let bookingId = generateBookingId();
+    // Ensure uniqueness for bookingId
+    let attempts = 0;
+    while (await Booking.findOne({ bookingId }) && attempts < 5) {
+      bookingId = generateBookingId();
+      attempts++;
+    }
+
+    // Save booking to database (include ticketId)
     const booking = await Booking.create({
       firstName,
       lastName,
@@ -141,6 +156,7 @@ export async function POST(request: NextRequest) {
       bookingTimeSlot: serviceMethod === "location" ? bookingTimeSlot : undefined,
       shippingAddress: serviceMethod === "pickup" ? shippingAddress : undefined,
       repairs: normalizedRepairs,
+      bookingId,
       pricing,
       notes,
       status: "pending",
@@ -197,16 +213,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Format repairs list (include selected part quality when available)
-    const repairsList = repairs
+    // Format repairs list (include selected part quality when available) - use normalized repairs
+    const repairsList = (normalizedRepairs || [])
       .map((repair: any) => {
         const qualityLabel = repair.partQuality && repair.partQuality.name ? ` <strong>(${repair.partQuality.name})</strong>` : "";
-        return `<li>${repair.name}${qualityLabel} - $${repair.price} (${repair.duration})</li>`;
+        return `<li>${repair.repairName}${qualityLabel} - $${repair.price} (${repair.duration})</li>`;
       })
       .join("");
 
     // Email content
-    const mailOptions = {
+    const adminMailOptions = {
       from: process.env.HOSTINGER_EMAIL,
       to: process.env.ADMIN_EMAIL || process.env.HOSTINGER_EMAIL,
       replyTo: email,
@@ -384,6 +400,11 @@ Phone: ${phone}
 Customer Type: ${customerType}
 
 ═══════════════════════════════════════════
+BOOKING DETAILS
+═══════════════════════════════════════════
+Booking ID: ${bookingId}
+
+═══════════════════════════════════════════
 DEVICE INFORMATION
 ═══════════════════════════════════════════
 Device Type: ${deviceType}
@@ -418,8 +439,80 @@ Submission time: ${new Date().toLocaleString()}
       `,
     };
 
-    // Send email
-    await transporter.sendMail(mailOptions);
+    // Send admin email
+    await transporter.sendMail(adminMailOptions);
+
+    // Prepare and send customer confirmation email including booking id
+    try {
+      const customerSubject = `Booking Confirmed — Booking ${bookingId} — ${model.name}`;
+      const customerHtml = `
+        <div style="font-family: Arial, sans-serif; max-width:700px;margin:0 auto;">
+          <h2>Booking Confirmed</h2>
+          <p>Thank you ${firstName}, your booking has been received and is currently <strong>pending</strong>.</p>
+          <p><strong>Booking ID:</strong> ${bookingId}</p>
+          <p>Please keep this ID for your records — you can reply to this email with the booking ID for any questions.</p>
+
+          <table style="width:100%;border-collapse:collapse;margin:20px 0;">
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Customer:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${firstName} ${lastName}</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Device:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${brand.name} ${model.name} (${color.name})</td></tr>
+            <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Service Method:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${serviceMethodText}</td></tr>
+            ${serviceMethod === "location" && bookingDate ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Booking Date:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${new Date(bookingDate).toLocaleDateString()}</td></tr>` : ''}
+            ${serviceMethod === "location" && bookingTimeSlot ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Time Slot:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${bookingTimeSlot}</td></tr>` : ''}
+          </table>
+
+          <h3 style="color:#333;margin:30px 0 15px 0;">Repairs</h3>
+          <div style="background:#f8f9fa;padding:15px;border-radius:6px;">
+            ${repairs.map((repair: any) => `
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span>${repair.repairName} ${repair.partQuality ? `(${repair.partQuality.name})` : ''}</span>
+                <span style="font-weight:bold;">$${repair.price.toFixed(2)}</span>
+              </div>
+              <div style="color:#666;font-size:14px;margin-bottom:12px;">Duration: ${repair.duration}</div>
+            `).join('')}
+          </div>
+
+          <h3 style="color:#333;margin:30px 0 15px 0;">Pricing Summary</h3>
+          <div style="background:#f8f9fa;padding:15px;border-radius:6px;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <span>Subtotal:</span>
+              <span>$${pricing.subtotal.toFixed(2)}</span>
+            </div>
+            ${pricing.discount > 0 ? `
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;color:#059669;">
+                <span>Discount${pricing.discountRuleName ? ` (${pricing.discountRuleName})` : ''}:</span>
+                <span>-$${pricing.discount.toFixed(2)}</span>
+              </div>
+            ` : ''}
+            ${pricing.tax > 0 ? `
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span>Tax (${pricing.taxPercentage}%):</span>
+                <span>$${pricing.tax.toFixed(2)}</span>
+              </div>
+            ` : ''}
+            <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:18px;border-top:2px solid #e5e7eb;padding-top:10px;margin-top:10px;">
+              <span>Total:</span>
+              <span>$${pricing.total.toFixed(2)}</span>
+            </div>
+          </div>
+
+          <p style="color:#666;font-size:12px;margin-top:20px;">Submission time: ${new Date().toLocaleString()}</p>
+        </div>
+      `;
+
+      const customerMailOptions = {
+        from: process.env.HOSTINGER_EMAIL,
+        to: email,
+        subject: customerSubject,
+        html: customerHtml,
+      };
+
+      // Send confirmation to customer (don't block the main response if it fails)
+      transporter.sendMail(customerMailOptions).catch((e) => {
+        console.error('Failed to send customer confirmation email:', e);
+      });
+    } catch (e) {
+      console.error('Error preparing/sending customer email:', e);
+    }
 
     return NextResponse.json(
       { 
