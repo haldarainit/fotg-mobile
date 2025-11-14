@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Trash2, Check, X, Star } from "lucide-react"
+import { Trash2, Check, X, Star, RefreshCw } from "lucide-react"
 
 interface Review {
   _id: string
@@ -137,8 +137,22 @@ export function ReviewsTable() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Reviews Management</CardTitle>
-          <CardDescription>Approve, reject, or delete customer reviews</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Reviews Management</CardTitle>
+              <CardDescription>Approve, reject, or delete customer reviews</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchReviews()}
+              disabled={isLoading}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>

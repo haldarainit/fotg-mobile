@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Loader2, Eye, Trash2, Calendar, Clock, Package, MapPin } from "lucide-react";
+import { Loader2, Eye, Trash2, Calendar, Clock, Package, MapPin, RefreshCw } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 
 interface Booking {
@@ -252,6 +252,16 @@ export function BookingsTable() {
             <SelectItem value="cancelled">Cancelled</SelectItem>
           </SelectContent>
           </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchBookings()}
+            disabled={isLoading}
+            className="gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
       </div>
 

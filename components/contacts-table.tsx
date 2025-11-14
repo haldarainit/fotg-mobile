@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { Trash2, Phone, Mail, Wrench } from "lucide-react"
+import { Trash2, Phone, Mail, Wrench, RefreshCw } from "lucide-react"
 
 interface Contact {
   _id: string
@@ -78,10 +78,24 @@ export function ContactsTable() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Contact Form Submissions</CardTitle>
-          <CardDescription>
-            View and manage customer inquiries from the contact form
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Contact Form Submissions</CardTitle>
+              <CardDescription>
+                View and manage customer inquiries from the contact form
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchContacts()}
+              disabled={isLoading}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
