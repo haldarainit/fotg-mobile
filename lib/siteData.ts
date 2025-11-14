@@ -8,7 +8,7 @@ export const siteData = {
   hero: {
     headline: "First fully Mobile Repair Shop in Texas, Dallas, DFW",
     subheadline: "Professional mobile repair services for smartphones, tablets, and more. Quick turnaround, quality guaranteed, and prices that don't break the bank.",
-    primaryCTA: "Get a Free Quote",
+    primaryCTA: "Get A Quote",
     secondaryCTA: "Book Repair Now",
     videoUrl: "https://player.cloudinary.com/embed/?cloud_name=dhz4my0yx&public_id=6755157-uhd_3840_2160_25fps_k1ranc&profile=cld-default&autoplay=true&muted=true&controls=false&show_logo=false&title=false&loop=true",
   },
