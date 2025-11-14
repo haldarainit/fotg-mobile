@@ -251,14 +251,15 @@ export const siteData = {
   contact: {
     headline: "Get in Touch with FOTG Mobile",
     description: "Ready to fix your device? Contact us today for a free quote or to schedule your repair. Our friendly team is here to help!",
-    phone: "+1 (555) 123-4567",
+    phone: "+1 (325) 321-9502",
+    phone2: "+1 (214) 656-9700",
     email: "support@fotgmobile.com",
     address: "123 Repair Street, Tech City, TC 12345",
     hours: "Mon-Fri: 9AM-7PM, Sat: 10AM-6PM, Sun: Closed",
     social: {
       facebook: "https://facebook.com/fotgmobile",
-      instagram: "https://instagram.com/fotgmobile",
-      twitter: "https://twitter.com/fotgmobile",
+      instagram: "https://www.instagram.com/fotg.mobile?igsh=MXVvNjZyN2FibTRmNg%3D%3D&utm_source=qr",
+      tiktok: "https://www.tiktok.com/@fotg.mobile?_r=1&_t=ZT-91HEg8lp6wH",
     },
   },
 
