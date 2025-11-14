@@ -113,7 +113,7 @@ export default function GetAQuotePage() {
   const [selectedModel, setSelectedModel] = useState<DeviceModel | null>(null);
   const [selectedColor, setSelectedColor] = useState("black");
   const [selectedRepairs, setSelectedRepairs] = useState<string[]>([]);
-  const [repairPartQuality, setRepairPartQuality] = useState<Record<string, "oem" | "aftermarket">>({});
+  const [repairPartQuality, setRepairPartQuality] = useState<Record<string, string>>({});
   const [serviceMethod, setServiceMethod] = useState("");
   const [customerType, setCustomerType] = useState<"private" | "business">(
     "private"
@@ -285,7 +285,7 @@ export default function GetAQuotePage() {
           const rawRepairs = repairsData.data || repairsData.repairs || [];
           // console.log("Raw repairs data:", rawRepairs);
           const normalizedRepairs: RepairItem[] = rawRepairs.map((r: any) => {
-            // console.log("Processing repair:", r.name, "Quality options:", r.qualityOptions);
+            console.log("Processing repair:", r.name, "Description:", r.description, "Full object:", r);
             return {
               id: r._id ?? r.id ?? String(r._id ?? r.id ?? ""),
               name: r.name || r.title || "",
@@ -300,7 +300,7 @@ export default function GetAQuotePage() {
               qualityOptions: r.qualityOptions || [],
             } as any;
           });
-          // console.log("Normalized repairs:", normalizedRepairs);
+          console.log("Final normalized repairs:", normalizedRepairs);
           setRepairs(normalizedRepairs);
         }
         setIsLoadingRepairs(false);
@@ -460,11 +460,11 @@ export default function GetAQuotePage() {
       const rId = typeof r.repairId === "object" 
         ? (r.repairId?._id ?? r.repairId?.id) 
         : r.repairId;
-      return rId;
+      return String(rId);
     }) || [];
     
     // Filter repairs to only include those added to the model
-    return repairs.filter((repair) => modelRepairIds.includes(repair.id));
+    return repairs.filter((repair) => modelRepairIds.includes(String(repair.id)));
   };
 
   const handleBrandSelect = (brand: Brand) => {
@@ -500,7 +500,6 @@ export default function GetAQuotePage() {
   };
 
   const handleRepairToggle = (repairId: string) => {
-    // console.log("handleRepairToggle called with repairId:", repairId);
     const isSelected = selectedRepairs.includes(repairId);
     
     // Check if this repair has quality options from the model's repair data
@@ -509,18 +508,21 @@ export default function GetAQuotePage() {
         const rId = typeof r.repairId === "object" 
           ? (r.repairId?._id ?? r.repairId?.id) 
           : r.repairId;
-        // console.log("Comparing model repairId:", rId, "with repairId:", repairId, "match:", rId === repairId);
-        return rId === repairId;
+        return String(rId) === String(repairId);
       }
     );
     
-    const hasQualityOptions = modelRepair?.qualityPrices && modelRepair.qualityPrices.length > 1;
-    // console.log("Model repair found:", modelRepair);
-    // console.log("Has quality options:", hasQualityOptions);
-
+    // Check if repair has quality options - show dialog regardless of price
+    // Some models may not include per-quality prices (empty qualityPrices) but the
+    // repair definition itself can declare qualityOptions. Treat either as valid.
+    const repairDef = repairs.find((r) => String(r.id) === String(repairId));
+    const hasQualityOptions =
+      (modelRepair?.qualityPrices && modelRepair.qualityPrices.length > 0) ||
+      Boolean((repairDef as any)?.qualityOptions?.length) ||
+      Boolean((repairDef as any)?.hasQualityOptions);
+    
     if (!isSelected && hasQualityOptions) {
       // Show quality selection dialog when selecting a repair that has quality options
-      // console.log("Opening quality dialog for repair:", repairId);
       setSelectedRepairForQuality(repairId);
       setShowPartQualityDialog(true);
     } else if (isSelected) {
@@ -538,7 +540,7 @@ export default function GetAQuotePage() {
     }
   };
 
-  const handlePartQualitySelect = (quality: "oem" | "aftermarket") => {
+  const handlePartQualitySelect = (quality: string) => {
     if (selectedRepairForQuality) {
       setRepairPartQuality((prev) => ({
         ...prev,
@@ -560,7 +562,7 @@ export default function GetAQuotePage() {
         const rId = typeof r.repairId === "object" 
           ? (r.repairId?._id ?? r.repairId?.id) 
           : r.repairId;
-        return rId === repairId || r.repairId === repairId;
+        return String(rId) === String(repairId) || String(r.repairId) === String(repairId);
       }
     );
 
@@ -1613,12 +1615,12 @@ export default function GetAQuotePage() {
                         const rId = typeof r.repairId === "object" 
                           ? (r.repairId?._id ?? r.repairId?.id) 
                           : r.repairId;
-                        return rId === repair.id;
+                        return String(rId) === String(repair.id);
                       }
                     );
                     
                     // Check if repair has quality options from backend
-                    const hasQualityOptions = modelRepair?.qualityPrices && modelRepair.qualityPrices.length > 1;
+                    const hasQualityOptions = modelRepair?.qualityPrices && modelRepair.qualityPrices.length > 0;
                     const selectedQuality = repairPartQuality[repair.id];
                     
                     // Debug logging for quality options
@@ -1676,15 +1678,21 @@ export default function GetAQuotePage() {
                             ) : null;
                           })()}
                           <p className="text-sm text-muted-foreground mb-3">
-                            {repair.description}
+                            {(() => {
+                              console.log(`Repair ${repair.id} description:`, repair?.description);
+                              return repair?.description || "Professional repair service for your device";
+                            })()}
                           </p>
                           <div className="flex items-baseline gap-2">
                             <p className="text-2xl font-bold text-primary">
-                              {displayPrice === 0 ? (
-                                <span className="text-base">Price on request</span>
-                              ) : (
-                                `$${isSelected ? getRepairPrice(repair.id) : displayPrice}`
-                              )}
+                              {(() => {
+                                const actualPrice = isSelected ? getRepairPrice(repair.id) : displayPrice;
+                                return actualPrice === 0 ? (
+                                  <span className="text-base">Price on request</span>
+                                ) : (
+                                  `$${actualPrice}`
+                                );
+                              })()}
                             </p>
                             {hasQualityOptions && displayPrice > 0 && (
                               <span className="text-xs text-muted-foreground">
@@ -1796,7 +1804,9 @@ export default function GetAQuotePage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold">${getRepairPrice(repairId)}</p>
+                            <p className="font-semibold">
+                              {getRepairPrice(repairId) === 0 ? "Price on request" : `$${getRepairPrice(repairId)}`}
+                            </p>
                             <button
                               onClick={() => handleRepairToggle(repairId)}
                               className="text-muted-foreground hover:text-destructive transition-colors"
@@ -2357,7 +2367,9 @@ export default function GetAQuotePage() {
                                 </p>
                               </div>
                             </div>
-                            <p className="font-semibold">${getRepairPrice(repairId)}</p>
+                            <p className="font-semibold">
+                              {getRepairPrice(repairId) === 0 ? "Price on request" : `$${getRepairPrice(repairId)}`}
+                            </p>
                           </div>
                         );
                       })}
@@ -2460,14 +2472,44 @@ export default function GetAQuotePage() {
                 const rId = typeof r.repairId === "object" 
                   ? (r.repairId?._id ?? r.repairId?.id) 
                   : r.repairId;
-                return rId === selectedRepairForQuality || String(rId) === String(selectedRepairForQuality);
+                return String(rId) === String(selectedRepairForQuality);
               }
             );
 
             if (!modelRepair || !modelRepair.qualityPrices || modelRepair.qualityPrices.length === 0) {
+              // Fallback: show default quality options
+              const defaultOptions = [
+                { id: "official", name: "Official", description: "Made by the brand's Manufacturer", price: 0 },
+                { id: "compatible", name: "Compatible", description: "Best available alternative from an Independent Manufacturer", price: 0 }
+              ];
+              
               return (
-                <div className="py-4 text-center text-muted-foreground">
-                  No quality options available for this repair.
+                <div className="grid gap-4 py-4">
+                  {defaultOptions.map((option) => (
+                    <Card
+                      key={option.id}
+                      className="cursor-pointer transition-all hover:border-primary"
+                      onClick={() => handlePartQualitySelect(option.id)}
+                    >
+                      <div className="p-6">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h3 className="font-bold text-xl mb-2">
+                              {option.name}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {option.description}
+                            </p>
+                          </div>
+                          <div className="text-right ml-4">
+                            <p className="text-3xl font-bold text-primary">
+                              <span className="text-base">Price on request</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               );
             }
@@ -2499,7 +2541,7 @@ export default function GetAQuotePage() {
                     <Card
                       key={qualityPrice.id}
                       className="cursor-pointer transition-all hover:border-primary"
-                      onClick={() => handlePartQualitySelect(qualityPrice.id as "oem" | "aftermarket")}
+                      onClick={() => handlePartQualitySelect(qualityPrice.id)}
                     >
                       <div className="p-6">
                         <div className="flex items-start justify-between mb-3">
@@ -2512,6 +2554,11 @@ export default function GetAQuotePage() {
                                 {qualityDetails.description}
                               </p>
                             )}
+                            {!qualityDetails?.description && qualityPrice.description && (
+                              <p className="text-sm text-muted-foreground">
+                                {qualityPrice.description}
+                              </p>
+                            )}
                             {qualityPrice.duration && (
                               <p className="text-xs text-muted-foreground mt-1">
                                 {formatDuration(qualityPrice.duration)}
@@ -2520,7 +2567,11 @@ export default function GetAQuotePage() {
                           </div>
                           <div className="text-right ml-4">
                             <p className="text-3xl font-bold text-primary">
-                              ${qualityPrice.price}
+                              {qualityPrice.price === 0 ? (
+                                <span className="text-base">Price on request</span>
+                              ) : (
+                                `$${qualityPrice.price}`
+                              )}
                             </p>
                           </div>
                         </div>

@@ -20,6 +20,11 @@ const RepairItemSchema = new mongoose.Schema(
       unique: true,
       default: () => `repair_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`,
     },
+    description: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     icon: {
       type: String,
       required: true,
