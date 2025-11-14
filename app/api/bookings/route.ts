@@ -75,7 +75,14 @@ export async function GET(request: NextRequest) {
     // Get booked time slots (using the slot label as identifier)
     const bookedSlots = bookings.map((booking) => booking.bookingTimeSlot).filter(Boolean);
 
-    // Filter out booked slots to get available slots
+    // Create slots with availability status
+    const allSlotsWithAvailability = activeSlots.map((slot: any) => ({
+      ...slot,
+      isAvailable: !bookedSlots.includes(slot.label),
+      isBooked: bookedSlots.includes(slot.label),
+    }));
+
+    // Filter out booked slots to get available slots (for backward compatibility)
     const availableSlots = activeSlots.filter((slot: any) => !bookedSlots.includes(slot.label)).map((slot: any) => slot.label);
 
     return NextResponse.json({
@@ -85,6 +92,7 @@ export async function GET(request: NextRequest) {
         availableSlots,
         bookedSlots,
         timeSlots: activeSlots,
+        allSlots: allSlotsWithAvailability, // New: all slots with availability status
       },
     });
   } catch (error: any) {

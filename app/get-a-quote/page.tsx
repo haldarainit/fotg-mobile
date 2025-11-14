@@ -129,7 +129,7 @@ export default function GetAQuotePage() {
   // Booking state for location service
   const [bookingDate, setBookingDate] = useState<Date | null>(null);
   const [bookingTimeSlot, setBookingTimeSlot] = useState("");
-  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<Array<{id: string, label: string, startTime: string, endTime: string, active: boolean, isAvailable: boolean, isBooked: boolean}>>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   // Shipping address for pickup service
@@ -308,7 +308,8 @@ export default function GetAQuotePage() {
         const response = await fetch(`/api/bookings?date=${dateStr}`);
         if (response.ok) {
           const data = await response.json();
-          setAvailableSlots(data.data.availableSlots || []);
+          // Use allSlots which includes availability status for each slot
+          setAvailableSlots(data.data.allSlots || []);
         }
       } catch (error) {
         console.error("Error fetching available slots:", error);
@@ -1942,7 +1943,11 @@ export default function GetAQuotePage() {
                           {isLoadingSlots ? (
                             <div className="text-sm text-muted-foreground">Loading available slots...</div>
                           ) : availableSlots.length === 0 ? (
-                            <div className="text-sm text-muted-foreground">No slots available for this date</div>
+                            <div className="text-sm text-muted-foreground">No time slots configured for this date</div>
+                          ) : availableSlots.filter(slot => slot.isAvailable).length === 0 ? (
+                            <div className="text-sm text-red-600 font-medium bg-red-50 p-3 rounded-lg border border-red-200">
+                              All time slots are booked for this date. Please select a different date.
+                            </div>
                           ) : (
                             <RadioGroup
                               value={bookingTimeSlot}
@@ -1951,15 +1956,25 @@ export default function GetAQuotePage() {
                             >
                               {availableSlots.map((slot) => (
                                 <label
-                                  key={slot}
-                                  className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-all cursor-pointer ${
-                                    bookingTimeSlot === slot
-                                      ? "border-primary bg-primary/5"
-                                      : "hover:border-primary/50"
+                                  key={slot.id}
+                                  className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-all ${
+                                    slot.isBooked
+                                      ? "border-red-300 bg-red-50 cursor-not-allowed opacity-60"
+                                      : bookingTimeSlot === slot.label
+                                      ? "border-primary bg-primary/5 cursor-pointer"
+                                      : "hover:border-primary/50 cursor-pointer"
                                   }`}
                                 >
-                                  <RadioGroupItem value={slot} />
-                                  <span className="flex-1">{slot}</span>
+                                  <RadioGroupItem
+                                    value={slot.label}
+                                    disabled={slot.isBooked}
+                                  />
+                                  <span className="flex-1">{slot.label}</span>
+                                  {slot.isBooked && (
+                                    <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-1 rounded">
+                                      BOOKED
+                                    </span>
+                                  )}
                                 </label>
                               ))}
                             </RadioGroup>

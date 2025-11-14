@@ -462,7 +462,7 @@ Submission time: ${new Date().toLocaleString()}
 
           <h3 style="color:#333;margin:30px 0 15px 0;">Repairs</h3>
           <div style="background:#f8f9fa;padding:15px;border-radius:6px;">
-            ${repairs.map((repair: any) => `
+            ${normalizedRepairs.map((repair: any) => `
               <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
                 <span>${repair.repairName} ${repair.partQuality ? `(${repair.partQuality.name})` : ''}</span>
                 <span style="font-weight:bold;">$${repair.price.toFixed(2)}</span>
