@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Booking from "@/models/Booking";
+import Settings from "@/models/Settings";
 
 // GET - Get available time slots for a specific date
 export async function GET(request: NextRequest) {
@@ -16,6 +17,44 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Fetch settings
+    const settings = await Settings.findOne().lean() as any;
+    const timeSlots = settings?.timeSlots || [];
+    const operatingDays = settings?.operatingDays || [1, 2, 3, 4, 5];
+    const closedDates = settings?.closedDates || [];
+
+    // Check if date is in closed dates
+    if (closedDates.includes(date)) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          date,
+          availableSlots: [],
+          bookedSlots: [],
+          message: "Store is closed on this date",
+        },
+      });
+    }
+
+    // Check if the day is operational
+    const dateObj = new Date(date);
+    const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
+
+    if (!operatingDays.includes(dayOfWeek)) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          date,
+          availableSlots: [],
+          bookedSlots: [],
+          message: "No slots available on this day",
+        },
+      });
+    }
+
+    // Get active time slots
+    const activeSlots = timeSlots.filter((slot: any) => slot.active);
 
     // Get all bookings for this date
     const startOfDay = new Date(date);
@@ -33,14 +72,19 @@ export async function GET(request: NextRequest) {
       status: { $ne: "cancelled" },
     }).lean();
 
-    // Return booked time slots
+    // Get booked time slots (using the slot label as identifier)
     const bookedSlots = bookings.map((booking) => booking.bookingTimeSlot).filter(Boolean);
+
+    // Filter out booked slots to get available slots
+    const availableSlots = activeSlots.filter((slot: any) => !bookedSlots.includes(slot.label)).map((slot: any) => slot.label);
 
     return NextResponse.json({
       success: true,
       data: {
         date,
+        availableSlots,
         bookedSlots,
+        timeSlots: activeSlots,
       },
     });
   } catch (error: any) {

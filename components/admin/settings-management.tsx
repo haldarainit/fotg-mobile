@@ -14,8 +14,11 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Plus, Trash2, Loader2, Save, Percent, DollarSign } from "lucide-react";
+import { Plus, Trash2, Loader2, Save, Percent, DollarSign, CalendarIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 
 interface DiscountRule {
   name: string;
@@ -29,10 +32,21 @@ interface DiscountRule {
   condition?: "minRepairs" | "minSubtotal";
 }
 
+interface TimeSlot {
+  id: string;
+  label: string;
+  startTime: string;
+  endTime: string;
+  active: boolean;
+}
+
 interface Settings {
   _id?: string;
   taxPercentage: number;
   discountRules: DiscountRule[];
+  timeSlots: TimeSlot[];
+  operatingDays: number[];
+  closedDates: string[];
 }
 
 interface Repair {
@@ -44,10 +58,14 @@ export function SettingsManagement() {
   const [settings, setSettings] = useState<Settings>({
     taxPercentage: 0,
     discountRules: [],
+    timeSlots: [],
+    operatingDays: [1, 2, 3, 4, 5], // Monday to Friday
+    closedDates: [],
   });
   const [repairs, setRepairs] = useState<Repair[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [calendarDate, setCalendarDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     fetchData();
@@ -65,7 +83,7 @@ export function SettingsManagement() {
         console.log("=== FETCH: Raw data from API ===");
         console.log("Raw settings:", JSON.stringify(data.data, null, 2));
         
-        const raw = data.data || { taxPercentage: 0, discountRules: [] };
+        const raw = data.data || { taxPercentage: 0, discountRules: [], timeSlots: [], operatingDays: [1,2,3,4,5], closedDates: [] };
         // Ensure numeric types and set proper defaults only if fields are missing
         const normalizedRules = (raw.discountRules || []).map((r: any, idx: number) => {
           console.log(`Fetch Rule #${idx + 1}:`, r);
@@ -83,7 +101,13 @@ export function SettingsManagement() {
         console.log("=== FETCH: Final state ===");
         console.log("Normalized rules:", normalizedRules);
         
-        setSettings({ ...(raw as any), discountRules: normalizedRules });
+        setSettings({ 
+          ...(raw as any), 
+          discountRules: normalizedRules,
+          timeSlots: raw.timeSlots || [],
+          operatingDays: raw.operatingDays || [1,2,3,4,5],
+          closedDates: raw.closedDates || [],
+        });
       }
 
       if (repairsRes.ok) {
@@ -172,6 +196,9 @@ export function SettingsManagement() {
             ...settings.discountRules[idx], // Preserve current state
             ...rule, // Override with response data
           })) || settings.discountRules,
+          timeSlots: responseData.timeSlots || settings.timeSlots,
+          operatingDays: responseData.operatingDays || settings.operatingDays,
+          closedDates: responseData.closedDates || settings.closedDates,
         };
 
         console.log("=== SAVE: Final state ===");
@@ -247,6 +274,15 @@ export function SettingsManagement() {
     setSettings({ ...settings, discountRules: newRules });
   };
 
+  const updateTimeSlot = (slotId: string, field: string, value: any) => {
+    const newSlots = [...settings.timeSlots];
+    const slotIndex = newSlots.findIndex(s => s.id === slotId);
+    if (slotIndex !== -1) {
+      (newSlots[slotIndex] as any)[field] = value;
+      setSettings({ ...settings, timeSlots: newSlots });
+    }
+  };
+
   const toggleRepairInRule = (ruleIndex: number, repairId: string) => {
     const newRules = [...settings.discountRules];
     const specificRepairs = newRules[ruleIndex].specificRepairs || [];
@@ -303,6 +339,250 @@ export function SettingsManagement() {
             <p className="text-sm text-muted-foreground mt-1">
               Example: 8.5 for 8.5% tax
             </p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Time Slot Settings */}
+      <Card className="p-6">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Time Slot Settings</h2>
+              <p className="text-sm text-muted-foreground">
+                Configure available booking time slots for in-store service
+              </p>
+            </div>
+            <Button onClick={() => {
+              // Find the latest end time from existing slots
+              const sortedSlots = [...settings.timeSlots].sort((a, b) => a.startTime.localeCompare(b.startTime));
+              const lastSlot = sortedSlots[sortedSlots.length - 1];
+              
+              // Use last slot's end time as start time, or default to 09:00
+              const newStartTime = lastSlot ? lastSlot.endTime : "09:00";
+              
+              // Calculate end time as 1 hour after start time
+              const [startHour, startMinute] = newStartTime.split(':').map(Number);
+              const endHour = startHour + 1;
+              const newEndTime = `${endHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}`;
+              
+              // Generate label
+              const formatTime = (time: string) => {
+                const [h, m] = time.split(':').map(Number);
+                const period = h >= 12 ? 'PM' : 'AM';
+                const displayHour = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                return `${displayHour}:${m.toString().padStart(2, '0')} ${period}`;
+              };
+              
+              const newLabel = `${formatTime(newStartTime)} - ${formatTime(newEndTime)}`;
+              
+              const newSlot = {
+                id: `slot-${Date.now()}`,
+                label: newLabel,
+                startTime: newStartTime,
+                endTime: newEndTime,
+                active: true,
+              };
+              setSettings({
+                ...settings,
+                timeSlots: [...settings.timeSlots, newSlot],
+              });
+            }} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Time Slot
+            </Button>
+          </div>
+
+          {settings.timeSlots.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">
+              No time slots configured. Click "Add Time Slot" to create one.
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {settings.timeSlots.map((slot, index) => (
+              <Card key={slot.id} className="p-4 border-2">
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between">
+                    <h3 className="text-lg font-semibold">
+                      Time Slot #{index + 1}
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`active-${slot.id}`}>Active</Label>
+                        <Switch
+                          id={`active-${slot.id}`}
+                          checked={slot.active}
+                          onCheckedChange={(checked) =>
+                            updateTimeSlot(slot.id, "active", checked)
+                          }
+                        />
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSettings({
+                            ...settings,
+                            timeSlots: settings.timeSlots.filter(s => s.id !== slot.id),
+                          });
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor={`label-${slot.id}`}>Display Label *</Label>
+                      <Input
+                        id={`label-${slot.id}`}
+                        value={slot.label}
+                        onChange={(e) => updateTimeSlot(slot.id, "label", e.target.value)}
+                        placeholder="e.g., 9:00 AM - 10:00 AM"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor={`start-${slot.id}`}>Start Time *</Label>
+                      <Input
+                        id={`start-${slot.id}`}
+                        type="time"
+                        value={slot.startTime}
+                        onChange={(e) => updateTimeSlot(slot.id, "startTime", e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor={`end-${slot.id}`}>End Time *</Label>
+                      <Input
+                        id={`end-${slot.id}`}
+                        type="time"
+                        value={slot.endTime}
+                        onChange={(e) => updateTimeSlot(slot.id, "endTime", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+
+          <div>
+            <Label>Operating Days</Label>
+            <p className="text-sm text-muted-foreground mb-3">
+              Select which days of the week bookings are available
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+              {[
+                { day: 0, label: "Sun" },
+                { day: 1, label: "Mon" },
+                { day: 2, label: "Tue" },
+                { day: 3, label: "Wed" },
+                { day: 4, label: "Thu" },
+                { day: 5, label: "Fri" },
+                { day: 6, label: "Sat" },
+              ].map(({ day, label }) => (
+                <div key={day} className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id={`day-${day}`}
+                    checked={settings.operatingDays.includes(day)}
+                    onChange={(e) => {
+                      const newDays = e.target.checked
+                        ? [...settings.operatingDays, day]
+                        : settings.operatingDays.filter(d => d !== day);
+                      setSettings({
+                        ...settings,
+                        operatingDays: newDays.sort(),
+                      });
+                    }}
+                    className="h-4 w-4 rounded border-gray-300"
+                  />
+                  <label htmlFor={`day-${day}`} className="text-sm cursor-pointer">
+                    {label}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Label>Closed Dates</Label>
+            <p className="text-sm text-muted-foreground mb-3">
+              Select specific dates when the store is closed
+            </p>
+            
+            <div className="space-y-4">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {calendarDate ? format(calendarDate, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={calendarDate}
+                    onSelect={(date) => {
+                      setCalendarDate(date);
+                      if (date) {
+                        const dateStr = format(date, "yyyy-MM-dd");
+                        if (!settings.closedDates.includes(dateStr)) {
+                          setSettings({
+                            ...settings,
+                            closedDates: [...settings.closedDates, dateStr].sort(),
+                          });
+                        }
+                        setCalendarDate(undefined); // Reset for next selection
+                      }
+                    }}
+                    disabled={(date) => {
+                      // Disable past dates and already selected dates
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      const dateStr = format(date, "yyyy-MM-dd");
+                      return date < today || settings.closedDates.includes(dateStr);
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {settings.closedDates.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Selected Closed Dates:</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {settings.closedDates.map((date, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 bg-muted px-3 py-1 rounded-md text-sm"
+                      >
+                        <span>{date}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-4 w-4 p-0"
+                          onClick={() => {
+                            setSettings({
+                              ...settings,
+                              closedDates: settings.closedDates.filter((_, i) => i !== index),
+                            });
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </Card>

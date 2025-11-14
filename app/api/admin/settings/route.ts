@@ -52,7 +52,7 @@ export async function PUT(request: NextRequest) {
     await connectDB();
 
     const body = await request.json();
-    const { taxPercentage, discountRules } = body;
+    const { taxPercentage, discountRules, timeSlots, operatingDays, closedDates } = body;
 
     let settings = await Settings.findOne();
 
@@ -61,20 +61,19 @@ export async function PUT(request: NextRequest) {
       settings = await Settings.create({
         taxPercentage: taxPercentage ?? 0,
         discountRules: discountRules ?? [],
+        timeSlots: timeSlots ?? [],
+        operatingDays: operatingDays ?? [1, 2, 3, 4, 5],
+        closedDates: closedDates ?? [],
       });
     } else {
-      // Update existing settings
-      if (taxPercentage !== undefined) {
-        settings.taxPercentage = taxPercentage;
-      }
-      if (discountRules !== undefined) {
-        // Clear existing rules and add new ones to ensure proper subdocument handling
-        settings.discountRules.splice(0, settings.discountRules.length);
-        discountRules.forEach((rule: any) => {
-          settings.discountRules.push(rule);
-        });
-        console.log("About to save discountRules:", discountRules);
-      }
+      // Update existing settings - ensure all fields are set
+      settings.set({
+        taxPercentage: taxPercentage !== undefined ? taxPercentage : settings.taxPercentage,
+        discountRules: discountRules !== undefined ? discountRules : settings.discountRules,
+        timeSlots: timeSlots !== undefined ? timeSlots : settings.timeSlots || [],
+        operatingDays: operatingDays !== undefined ? operatingDays : settings.operatingDays || [1, 2, 3, 4, 5],
+        closedDates: closedDates !== undefined ? closedDates : settings.closedDates || [],
+      });
       await settings.save();
     }
 

@@ -72,41 +72,19 @@ const getRepairIcon = (repairId: string) => {
   return iconMap[repairId] || iconMap.default;
 };
 
-// Part quality options for repairs that support it
-const PART_QUALITY_OPTIONS = {
-  screen: [
-    {
-      id: "oem",
-      name: "Original (OEM)",
-      duration: "15 minutes",
-      description: "Official authentic part made by the brand's manufacturer.",
-      priceMultiplier: 1.4, // 40% more expensive
-    },
-    {
-      id: "aftermarket",
-      name: "Premium Aftermarket",
-      duration: "15 minutes",
-      description: "Best available alternative to original. Almost identical to original quality.",
-      priceMultiplier: 1.0, // Base price
-    },
-  ],
-  battery: [
-    {
-      id: "oem",
-      name: "Original (OEM)",
-      duration: "15 minutes",
-      description: "Official authentic part made by the brand's manufacturer.",
-      priceMultiplier: 1.4,
-    },
-    {
-      id: "aftermarket",
-      name: "Premium Aftermarket",
-      duration: "15 minutes",
-      description: "Best available alternative to original. Almost identical to original quality.",
-      priceMultiplier: 1.0,
-    },
-  ],
+// Helper function to format duration
+const formatDuration = (duration: string) => {
+  if (!duration) return "";
+  // If it already contains "minutes", return as is
+  if (duration.toLowerCase().includes("minute")) return duration;
+  // If it's just a number, add "minutes"
+  if (/^\d+$/.test(duration)) return `${duration} minutes`;
+  // Otherwise, return as is
+  return duration;
 };
+
+// Part quality options for repairs that support it
+// Removed hardcoded PART_QUALITY_OPTIONS - now using backend data
 
 // Service method options
 const SERVICE_METHODS = [
@@ -151,7 +129,7 @@ export default function GetAQuotePage() {
   // Booking state for location service
   const [bookingDate, setBookingDate] = useState<Date | null>(null);
   const [bookingTimeSlot, setBookingTimeSlot] = useState("");
-  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   // Shipping address for pickup service
@@ -320,7 +298,7 @@ export default function GetAQuotePage() {
   useEffect(() => {
     const fetchAvailableSlots = async () => {
       if (!bookingDate || serviceMethod !== "location") {
-        setBookedSlots([]);
+        setAvailableSlots([]);
         return;
       }
 
@@ -330,10 +308,11 @@ export default function GetAQuotePage() {
         const response = await fetch(`/api/bookings?date=${dateStr}`);
         if (response.ok) {
           const data = await response.json();
-          setBookedSlots(data.data.bookedSlots || []);
+          setAvailableSlots(data.data.availableSlots || []);
         }
       } catch (error) {
         console.error("Error fetching available slots:", error);
+        setAvailableSlots([]);
       } finally {
         setIsLoadingSlots(false);
       }
@@ -715,9 +694,19 @@ export default function GetAQuotePage() {
       const repairsData = selectedRepairs.map((repairId) => {
         const repair = repairs.find((r) => r.id === repairId);
         const quality = repairPartQuality[repairId];
-        const qualityOptions = PART_QUALITY_OPTIONS[repairId as keyof typeof PART_QUALITY_OPTIONS];
-        const selectedQualityOption = quality && qualityOptions 
-          ? qualityOptions.find((q) => q.id === quality)
+        
+        // Get quality options from backend data
+        const modelRepair = (selectedModel as any)?.repairs?.find(
+          (r: any) => {
+            const rId = typeof r.repairId === "object" 
+              ? (r.repairId?._id ?? r.repairId?.id) 
+              : r.repairId;
+            return rId === repairId;
+          }
+        );
+        const qualityOptions = modelRepair?.qualityPrices || [];
+        const selectedQualityOption = quality && qualityOptions.length > 0
+          ? qualityOptions.find((q: any) => q.id === quality)
           : null;
 
         return {
@@ -1634,7 +1623,7 @@ export default function GetAQuotePage() {
                                   {repair.name}
                                 </h3>
                                 <p className="text-sm text-muted-foreground">
-                                  {repair.duration}
+                                  {formatDuration(repair.duration)}
                                 </p>
                               </div>
                             </div>
@@ -1775,7 +1764,7 @@ export default function GetAQuotePage() {
                                 ) : null;
                               })()}
                               <p className="text-xs text-muted-foreground">
-                                {repair.duration}
+                                {formatDuration(repair.duration)}
                               </p>
                             </div>
                           </div>
@@ -1952,33 +1941,27 @@ export default function GetAQuotePage() {
                           </Label>
                           {isLoadingSlots ? (
                             <div className="text-sm text-muted-foreground">Loading available slots...</div>
+                          ) : availableSlots.length === 0 ? (
+                            <div className="text-sm text-muted-foreground">No slots available for this date</div>
                           ) : (
                             <RadioGroup
                               value={bookingTimeSlot}
                               onValueChange={setBookingTimeSlot}
                               className="grid grid-cols-2 gap-2"
                             >
-                              {["9:00 am - 11:00 am", "11:00 am - 1:00 pm", "1:00 pm - 3:00 pm", "3:00 pm - 5:00 pm", "5:00 pm - 7:00 pm"].map((slot) => {
-                                const isBooked = bookedSlots.includes(slot);
-                                return (
-                                  <label
-                                    key={slot}
-                                    className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-all ${
-                                      isBooked
-                                        ? "opacity-50 cursor-not-allowed bg-muted"
-                                        : bookingTimeSlot === slot
-                                        ? "border-primary bg-primary/5 cursor-pointer"
-                                        : "hover:border-primary/50 cursor-pointer"
-                                    }`}
-                                  >
-                                    <RadioGroupItem value={slot} disabled={isBooked} />
-                                    <span className="flex-1">{slot}</span>
-                                    {isBooked && (
-                                      <Badge variant="destructive" className="text-xs">Booked</Badge>
-                                    )}
-                                  </label>
-                                );
-                              })}
+                              {availableSlots.map((slot) => (
+                                <label
+                                  key={slot}
+                                  className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-all cursor-pointer ${
+                                    bookingTimeSlot === slot
+                                      ? "border-primary bg-primary/5"
+                                      : "hover:border-primary/50"
+                                  }`}
+                                >
+                                  <RadioGroupItem value={slot} />
+                                  <span className="flex-1">{slot}</span>
+                                </label>
+                              ))}
                             </RadioGroup>
                           )}
                         </div>
@@ -2293,7 +2276,7 @@ export default function GetAQuotePage() {
                                   ) : null;
                                 })()}
                                 <p className="text-xs text-muted-foreground">
-                                  {repair.duration}
+                                  {formatDuration(repair.duration)}
                                 </p>
                               </div>
                             </div>
@@ -2454,7 +2437,7 @@ export default function GetAQuotePage() {
                             )}
                             {qualityPrice.duration && (
                               <p className="text-xs text-muted-foreground mt-1">
-                                Duration: {qualityPrice.duration}
+                                {formatDuration(qualityPrice.duration)}
                               </p>
                             )}
                           </div>
