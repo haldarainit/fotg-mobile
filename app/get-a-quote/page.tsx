@@ -40,6 +40,7 @@ import {
   X,
   Info,
   Calendar,
+  Truck,
 } from "lucide-react";
 import { LpNavbar1 } from "@/components/pro-blocks/landing-page/lp-navbars/lp-navbar-1";
 import { Footer1 } from "@/components/pro-blocks/landing-page/footers/footer-1";
@@ -1991,6 +1992,32 @@ export default function GetAQuotePage() {
                         <Package className="h-5 w-5 text-primary" />
                         Your Pickup Address
                       </h3>
+
+                      {/* Shipping Terms Note */}
+                      <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
+                        <h4 className="font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
+                          <Truck className="h-4 w-4" />
+                          SEND YOUR DEVICE TO
+                        </h4>
+                        <div className="font-mono text-sm bg-white dark:bg-gray-800 p-3 rounded border">
+                          PO Box 530133<br />
+                          Saint Petersburg, FL 33747
+                        </div>
+                        <p className="text-xs text-blue-800 dark:text-blue-200 italic">
+                          *Use this address exactly as shown, company name is not required.
+                        </p>
+
+                        <div className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+                          <h5 className="font-semibold">TERMS FOR SENDING DEVICE</h5>
+                          <ul className="space-y-1 list-disc list-inside">
+                            <li>You'll be responsible for shipping costs each way.</li>
+                            <li>We aim to repair each device and ship it back out the same day it arrives!</li>
+                            <li>Pack your device as securely as possible to prevent further damage.</li>
+                            <li>If the frame (metal bezel between the screen and back glass) is bent, curved, or cracked, please text us a video of the condition for accurate pricing <strong>727.657.8390</strong></li>
+                            <li>Please be sure to send a tracking number for the shipment so that we can plan for its arrival.</li>
+                          </ul>
+                        </div>
+                      </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
