@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { siteData } from "@/lib/siteData";
 import { Facebook, Instagram, Twitter, Phone, Mail, MapPin, Clock } from "lucide-react";
+import { PrivacyPolicyModal } from "@/components/privacy-policy-modal";
+import { TermsOfServiceModal } from "@/components/terms-of-service-modal";
 
 export function Footer1() {
   return (
@@ -143,18 +145,16 @@ export function Footer1() {
             className="flex flex-col items-center gap-6 text-sm md:flex-row md:gap-8"
             aria-label="Legal links"
           >
-            <Link
-              href="/privacy"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Privacy Policy
-            </Link>
-            <Link
-              href="/terms"
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Terms of Service
-            </Link>
+            <PrivacyPolicyModal>
+              <button className="text-muted-foreground hover:text-foreground transition-colors">
+                Privacy Policy
+              </button>
+            </PrivacyPolicyModal>
+            <TermsOfServiceModal>
+              <button className="text-muted-foreground hover:text-foreground transition-colors">
+                Terms of Service
+              </button>
+            </TermsOfServiceModal>
           </nav>
         </div>
       </div>
