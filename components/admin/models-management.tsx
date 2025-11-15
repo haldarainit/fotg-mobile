@@ -868,7 +868,7 @@ export function ModelsManagement() {
                                   <Label className="text-xs">Quality Option Prices</Label>
                                   <div className="grid grid-cols-1 gap-2">
                                     {selectedRepair.qualityOptions.map((q: any, qi: number) => {
-                                      const currentQualityPrice = mr.qualityPrices?.[qi]?.price || (q.priceMultiplier ? mr.basePrice * q.priceMultiplier : mr.basePrice);
+                                      const currentQualityPrice = mr.qualityPrices?.[qi]?.price ?? (q.priceMultiplier ? mr.basePrice * q.priceMultiplier : mr.basePrice);
                                       return (
                                         <div key={q.id} className="flex gap-2 items-center p-2 border rounded">
                                           <div className="flex-1">
