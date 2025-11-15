@@ -126,6 +126,7 @@ export default function GetAQuotePage() {
     brands: Brand[];
     models: DeviceModel[];
   }>({ brands: [], models: [] });
+  const [expandedVariants, setExpandedVariants] = useState<Set<string>>(new Set());
 
   // Booking state for location service
   const [bookingDate, setBookingDate] = useState<Date | null>(null);
@@ -189,7 +190,54 @@ export default function GetAQuotePage() {
   // Combined loading state for backward compatibility
   const isLoadingData = isLoadingBrands || isLoadingModels || isLoadingRepairs;
 
-  // Fetch brands, models, and repairs from backend
+// Helper function to render variants with show more/less
+const renderVariants = (variants: string[], modelId: string, showAllByDefault: boolean = false) => {
+  const maxVisible = 2;
+  const isExpanded = showAllByDefault || expandedVariants.has(modelId);
+  const visibleVariants = isExpanded ? variants : variants.slice(0, maxVisible);
+  const hasMore = variants.length > maxVisible;
+
+  return (
+    <div className="text-xs text-muted-foreground text-center mt-1 relative group">
+      <div className="transition-all duration-200">
+        {visibleVariants.join(", ")}
+        {hasMore && !isExpanded && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpandedVariants(prev => new Set(prev).add(modelId));
+            }}
+            className="ml-1 text-primary hover:underline"
+          >
+            +{variants.length - maxVisible} more
+          </button>
+        )}
+        {hasMore && isExpanded && !showAllByDefault && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpandedVariants(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(modelId);
+                return newSet;
+              });
+            }}
+            className="ml-1 text-primary hover:underline"
+          >
+            show less
+          </button>
+        )}
+      </div>
+      {/* Hover tooltip showing all variants */}
+      {hasMore && (
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+          {variants.join(", ")}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
+        </div>
+      )}
+    </div>
+  );
+};  // Fetch brands, models, and repairs from backend
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -1041,9 +1089,7 @@ export default function GetAQuotePage() {
                                       <p className="text-xs text-muted-foreground">
                                         {brand?.name}
                                       </p>
-                                      <p className="text-xs text-muted-foreground truncate">
-                                        {model.variants.join(", ")}
-                                      </p>
+                                      {renderVariants(model.variants, model.id)}
                                     </div>
                                   </button>
                                 );
@@ -1442,8 +1488,8 @@ export default function GetAQuotePage() {
                     onClick={() => handleModelSelect(model)}
                     className="group"
                   >
-                    <div className="border-2 rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-all">
-                      <div className="aspect-square bg-gray-50 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                    <div className="border-2 rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-all flex flex-col h-80">
+                      <div className="aspect-square bg-gray-50 rounded-lg mb-3 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {model.image ? (
                           <Image
                             src={model.image}
@@ -1462,12 +1508,22 @@ export default function GetAQuotePage() {
                           </div>
                         )}
                       </div>
-                      <p className="font-semibold text-sm text-center">
-                        {model.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground text-center mt-1">
-                        {model.variants.join(", ")}
-                      </p>
+                      <div className="flex-1 flex flex-col justify-start min-h-0">
+                        <p className="font-semibold text-sm text-center mb-2 h-10 flex items-center justify-center overflow-hidden"
+                           style={{
+                             display: '-webkit-box',
+                             WebkitLineClamp: 2,
+                             WebkitBoxOrient: 'vertical' as const,
+                             lineHeight: '1.25rem'
+                           }}>
+                          {model.name}
+                        </p>
+                        <div className="flex-1 flex items-start justify-center">
+                          <div className="text-center">
+                            {renderVariants(model.variants, model.id)}
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </button>
                 ))}
@@ -1508,6 +1564,9 @@ export default function GetAQuotePage() {
                       <p className="text-muted-foreground">
                         {selectedBrand?.name}
                       </p>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {selectedModel.variants.join(", ")}
+                      </div>
                       <p className="text-sm text-muted-foreground mt-2">
                         Selected:{" "}
                         {selectedModel.colors.find(
@@ -1754,6 +1813,7 @@ export default function GetAQuotePage() {
                       <p className="text-sm text-muted-foreground">
                         {selectedBrand?.name || selectedModel?.brandName}
                       </p>
+                      {selectedModel && renderVariants(selectedModel.variants, selectedModel.id)}
                       <p className="text-xs text-muted-foreground mt-1">
                         Color:{" "}
                         {selectedModel?.colors.find(
@@ -2320,6 +2380,7 @@ export default function GetAQuotePage() {
                         <p className="text-sm text-muted-foreground">
                           {selectedBrand?.name}
                         </p>
+                        {selectedModel && renderVariants(selectedModel.variants, selectedModel.id)}
                         <p className="text-xs text-muted-foreground mt-1">
                           Color:{" "}
                           {selectedModel?.colors.find(

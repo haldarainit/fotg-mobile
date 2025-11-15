@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         model: RepairItem, 
         select: "name basePrice hasQualityOptions qualityOptions" 
       })
-      .sort({ name: 1 })
+      .sort({ createdAt: 1 })
       .skip(skip)
       .limit(limit)
       .lean()
