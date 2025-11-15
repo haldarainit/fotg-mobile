@@ -87,15 +87,55 @@ export function ModelsManagement() {
 
   const DEVICE_TYPES = ["smartphone", "tablet", "laptop"];
 
+  // Search & filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterBrand, setFilterBrand] = useState("all");
+  const [filterDeviceType, setFilterDeviceType] = useState("all");
+
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 500);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Fetch when page changes
   useEffect(() => {
     fetchData();
-  }, [currentPage]); // Refetch when page changes
+  }, [currentPage]);
+
+  // When filters change, reset to page 1 and fetch (avoid double fetch)
+  useEffect(() => {
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    } else {
+      fetchData();
+    }
+  }, [debouncedSearch, filterBrand, filterDeviceType]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setDebouncedSearch("");
+    setFilterBrand("all");
+    setFilterDeviceType("all");
+    setCurrentPage(1);
+    // Fetch immediately to reflect cleared state
+    fetchData();
+  };
 
   const fetchData = async () => {
     try {
       setIsLoading(true);
+      // Build query params for models endpoint
+      const params = new URLSearchParams();
+      params.append("page", String(currentPage));
+      params.append("limit", String(modelsPerPage));
+      if (debouncedSearch) params.append("search", debouncedSearch);
+      if (filterBrand && filterBrand !== "all") params.append("brandId", filterBrand);
+      if (filterDeviceType && filterDeviceType !== "all") params.append("deviceType", filterDeviceType);
+
       const [modelsRes, brandsRes, repairsRes] = await Promise.all([
-          fetch(`/api/admin/models?page=${currentPage}&limit=${modelsPerPage}`),
+          fetch(`/api/admin/models?${params.toString()}`),
           fetch("/api/admin/brands?activeOnly=true"),
           fetch("/api/admin/repairs"),
         ]);
@@ -444,17 +484,56 @@ export function ModelsManagement() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Device Models Management</h2>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchData()}
-            disabled={isLoading}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+        <div className="flex gap-2 items-center">
+          <div className="flex items-center gap-2 mr-2">
+            <Input
+              placeholder="Search models..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-48"
+            />
+
+            <Select value={filterBrand} onValueChange={(value) => setFilterBrand(value)}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="All brands" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Brands</SelectItem>
+                {brands.map((b) => (
+                  <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterDeviceType} onValueChange={(value) => setFilterDeviceType(value)}>
+              <SelectTrigger className="w-32">
+                <SelectValue placeholder="All types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                {DEVICE_TYPES.map((t) => (
+                  <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={clearFilters} disabled={isLoading}>
+              Clear
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchData()}
+              disabled={isLoading}
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => resetForm()}>

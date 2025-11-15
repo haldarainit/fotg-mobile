@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const brandId = searchParams.get("brandId");
     const deviceType = searchParams.get("deviceType");
+    const search = searchParams.get("search");
     const activeOnly = searchParams.get("activeOnly") === "true";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "50");
@@ -41,6 +42,16 @@ export async function GET(request: NextRequest) {
     
     if (deviceType) {
       query.deviceType = deviceType;
+    }
+
+    // Text search across model name and variants
+    if (search && search.trim()) {
+      const s = search.trim();
+      const regex = new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      query.$or = [
+        { name: { $regex: regex } },
+        { variants: { $elemMatch: { $regex: regex } } },
+      ];
     }
 
     // Get total count for pagination
