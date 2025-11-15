@@ -63,6 +63,14 @@ export function ModelsManagement() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bulkPreviewRows, setBulkPreviewRows] = useState<any[] | null>(null);
+  const [bulkPreviewOpen, setBulkPreviewOpen] = useState(false);
+  const [bulkDryRunAnalysis, setBulkDryRunAnalysis] = useState<any[] | null>(null);
+  const [bulkBrandDialogOpen, setBulkBrandDialogOpen] = useState(false);
+  const [bulkDialogBrand, setBulkDialogBrand] = useState<string>("all");
+  const [bulkDialogDeviceType, setBulkDialogDeviceType] = useState<string>("all");
+  const [bulkAwaitingFile, setBulkAwaitingFile] = useState(false);
+  const bulkInputRef = useRef<HTMLInputElement | null>(null);
   const [editingModel, setEditingModel] = useState<DeviceModel | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
@@ -990,6 +998,273 @@ export function ModelsManagement() {
                 </Button>
               </div>
             </form>
+          </DialogContent>
+        </Dialog>
+        
+        {/* Bulk upload input (hidden) and button */}
+        <input
+          id="bulk-upload-input"
+          ref={bulkInputRef}
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          className="hidden"
+          onChange={async (e) => {
+            const input = e.currentTarget as HTMLInputElement;
+            const f = input.files?.[0];
+            if (!f) {
+              // clear value to allow re-selecting same file later
+              input.value = '';
+              return;
+            }
+            try {
+              setIsLoading(true);
+              const fd = new FormData();
+              fd.append('file', f);
+              // send to parse route to get preview
+              const res = await fetch('/api/admin/models/bulk/parse', {
+                method: 'POST',
+                body: fd,
+                credentials: 'include',
+              });
+              const data = await res.json();
+              if (res.ok && data.success) {
+                setBulkPreviewRows(data.preview || []);
+                setBulkPreviewOpen(true);
+                // run a dry-run analysis to detect duplicates/errors before import
+                try {
+                  const dryRes = await fetch('/api/admin/models/bulk/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rows: data.preview || [], brandId: (filterBrand === 'all' ? undefined : filterBrand) || filterBrand, deviceType: filterDeviceType === 'all' ? undefined : filterDeviceType, dryRun: true }),
+                    credentials: 'include',
+                  });
+                  const dryJson = await dryRes.json();
+                  if (dryRes.ok && dryJson.success) {
+                    setBulkDryRunAnalysis(dryJson.analysis || null);
+                  } else {
+                    setBulkDryRunAnalysis(null);
+                  }
+                } catch (err) {
+                  console.error('Dry-run error', err);
+                  setBulkDryRunAnalysis(null);
+                }
+                // if we were awaiting a file from the pre-upload dialog, close it now
+                if (bulkAwaitingFile) {
+                  setBulkBrandDialogOpen(false);
+                  setBulkAwaitingFile(false);
+                }
+              } else {
+                toast.error(data.error || 'Failed to parse file');
+              }
+            } catch (err) {
+              console.error('Parse error', err);
+              toast.error('Failed to parse file');
+            } finally {
+              setIsLoading(false);
+              // clear the input value using the captured element to avoid synthetic-event nullification
+              input.value = '';
+            }
+          }}
+        />
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-2"
+          onClick={() => {
+            if (!filterBrand || filterBrand === 'all') {
+              // open dialog to choose brand/device type before uploading
+              setBulkDialogBrand('all');
+              setBulkDialogDeviceType(filterDeviceType || 'all');
+              setBulkBrandDialogOpen(true);
+            } else {
+              bulkInputRef.current?.click();
+            }
+          }}
+        >
+          Bulk Upload
+        </Button>
+
+        {/* Dialog to select Brand/Device Type before bulk upload when none selected */}
+        <Dialog open={bulkBrandDialogOpen} onOpenChange={setBulkBrandDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Select Brand for Bulk Upload</DialogTitle>
+              <DialogDescription>Choose the brand (and optionally device type) to map parsed models to before uploading the file.</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 mt-2">
+              <div>
+                <Label>Brand *</Label>
+                <Select value={bulkDialogBrand} onValueChange={(v) => setBulkDialogBrand(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select brand" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">-- Select Brand --</SelectItem>
+                    {brands.map((b) => (
+                      <SelectItem key={b._id} value={b._id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Device Type (optional)</Label>
+                <Select value={bulkDialogDeviceType} onValueChange={(v) => setBulkDialogDeviceType(v)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {DEVICE_TYPES.map((t) => (
+                      <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setBulkBrandDialogOpen(false)}>Cancel</Button>
+                <Button onClick={() => {
+                  if (!bulkDialogBrand || bulkDialogBrand === 'all') {
+                    toast.error('Please select a brand to continue');
+                    return;
+                  }
+                  // Apply chosen filters and open file picker — keep dialog open until file chosen
+                  setFilterBrand(bulkDialogBrand);
+                  setFilterDeviceType(bulkDialogDeviceType || 'all');
+                  setBulkAwaitingFile(true);
+                  // open file picker; dialog will close after a file is picked and parsed
+                  setTimeout(() => bulkInputRef.current?.click(), 150);
+                }}>Continue</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Preview Dialog for bulk rows */}
+        <Dialog open={bulkPreviewOpen} onOpenChange={setBulkPreviewOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Bulk import preview</DialogTitle>
+              <DialogDescription>Review parsed rows and uncheck any you don't want to import.</DialogDescription>
+            </DialogHeader>
+            <div className="p-4">
+              {bulkPreviewRows && bulkPreviewRows.length > 0 ? (
+                <div className="space-y-3">
+                  {/* Dry-run summary */}
+                  {bulkDryRunAnalysis && (
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm">
+                        <strong>Preview analysis:</strong>
+                        <span className="ml-2">Create: {(bulkDryRunAnalysis.filter(a => a.action === 'create').length)}</span>
+                        <span className="ml-2">Skipped: {(bulkDryRunAnalysis.filter(a => a.action === 'skip').length)}</span>
+                        <span className="ml-2">Errors: {(bulkDryRunAnalysis.filter(a => a.action === 'error').length)}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground">Mapped Brand: {brands.find(b=>b._id===filterBrand)?.name || 'N/A'} • Type: {filterDeviceType === 'all' ? 'Any' : filterDeviceType}</div>
+                    </div>
+                  )}
+                  <table className="w-full text-sm table-auto border-collapse">
+                    <thead>
+                      <tr className="bg-muted">
+                        <th className="p-2 text-left">Import</th>
+                        <th className="p-2 text-left">Model</th>
+                        <th className="p-2 text-left">Status</th>
+                        <th className="p-2 text-left">Variants</th>
+                        <th className="p-2 text-left">Colours</th>
+                        <th className="p-2 text-left">Image URL</th>
+                        <th className="p-2 text-left">Repairs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkPreviewRows.map((r, i) => (
+                        <tr key={i} className="border-t">
+                          <td className="p-2">
+                            <input type="checkbox" defaultChecked data-row-index={i} />
+                          </td>
+                          <td className="p-2">{r.name}</td>
+                          <td className="p-2">
+                            {bulkDryRunAnalysis && bulkDryRunAnalysis[i] ? (
+                              bulkDryRunAnalysis[i].action === 'create' ? (
+                                <span className="text-green-600">Will create</span>
+                              ) : bulkDryRunAnalysis[i].action === 'skip' ? (
+                                <span className="text-yellow-700">Skipped</span>
+                              ) : (
+                                <span className="text-red-600">Error</span>
+                              )
+                            ) : (
+                              <span className="text-muted-foreground">Unknown</span>
+                            )}
+                          </td>
+                          <td className="p-2">{(r.variants || []).join(', ')}</td>
+                          <td className="p-2">{(r.colours || []).map((c:any)=>c.name).join(', ')}</td>
+                          <td className="p-2 break-all">{r.imageUrl}</td>
+                          <td className="p-2">{(r.repairsParsed || []).map((rp:any)=>rp.name + (rp.price?` ($${rp.price})`:'')).join(', ')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div className="flex justify-end gap-2 mt-4">
+                    <Button variant="outline" onClick={() => setBulkPreviewOpen(false)}>Cancel</Button>
+                    <Button onClick={async () => {
+                      // collect selected rows
+                      const checkboxes = Array.from(document.querySelectorAll<HTMLInputElement>('[data-row-index]'));
+                      const selectedRows = checkboxes.filter(cb => cb.checked).map(cb => bulkPreviewRows[Number(cb.dataset.rowIndex)]);
+                      if (selectedRows.length === 0) {
+                        toast.error('No rows selected');
+                        return;
+                      }
+                      if (!filterBrand || filterBrand === 'all') {
+                        toast.error('Select a Brand filter before importing');
+                        return;
+                      }
+                      // If dry-run found per-row errors, prevent import for those rows
+                      if (bulkDryRunAnalysis) {
+                        const checkboxesAll = Array.from(document.querySelectorAll<HTMLInputElement>('[data-row-index]'));
+                        const problematic = checkboxesAll.filter(cb => cb.checked && bulkDryRunAnalysis[Number(cb.dataset.rowIndex)] && bulkDryRunAnalysis[Number(cb.dataset.rowIndex)].action === 'error');
+                        if (problematic.length > 0) {
+                          toast.error('One or more selected rows have errors; fix them before importing');
+                          return;
+                        }
+                      }
+                      setIsLoading(true);
+                      try {
+                        const res = await fetch('/api/admin/models/bulk/create', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ rows: selectedRows, brandId: filterBrand, deviceType: filterDeviceType === 'all' ? undefined : filterDeviceType }),
+                          credentials: 'include',
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.success) {
+                          const createdCount = data.created?.length || 0;
+                          const skippedCount = data.skipped?.length || 0;
+                          const errorCount = data.errors?.length || 0;
+                          toast.success('Imported ' + createdCount + ' models');
+                          if (skippedCount > 0) toast.warning('Skipped ' + skippedCount + ' duplicate model(s)');
+                          if (errorCount > 0) toast.error('Failed to import ' + errorCount + ' row(s)');
+                          fetchData();
+                          setBulkPreviewOpen(false);
+                          setBulkPreviewRows(null);
+                        } else {
+                          console.error('Create failed', data);
+                          toast.error(data.error || 'Import failed');
+                        }
+                      } catch (err) {
+                        console.error('Import error', err);
+                        toast.error('Import failed');
+                      } finally {
+                        setIsLoading(false);
+                      }
+                    }}>Import selected</Button>
+                  </div>
+                </div>
+              ) : (
+                <div>No rows parsed</div>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
         </div>
