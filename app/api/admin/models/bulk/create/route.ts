@@ -2,32 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import DeviceModel from "@/models/DeviceModel";
 import RepairItem from "@/models/RepairItem";
+import { v2 as cloudinary } from 'cloudinary';
+
+cloudinary.config({
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 async function uploadToCloudinary(imageUrl: string) {
   try {
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
-    if (!cloudName || !uploadPreset) return null;
-
-    const res = await fetch(imageUrl);
-    if (!res.ok) return null;
-    const contentType = res.headers.get('content-type') || 'image/jpeg';
-    const arrayBuffer = await res.arrayBuffer();
-    const b64 = Buffer.from(arrayBuffer).toString('base64');
-    const dataUri = `data:${contentType};base64,${b64}`;
-
-    const form = new FormData();
-    form.append('file', dataUri);
-    form.append('upload_preset', uploadPreset);
-    form.append('folder', 'models');
-
-    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-      method: 'POST',
-      body: form,
+    const result = await cloudinary.uploader.upload(imageUrl, {
+      folder: 'models',
     });
-    if (!uploadRes.ok) return null;
-    const uploadJson = await uploadRes.json();
-    return { url: uploadJson.secure_url, publicId: uploadJson.public_id };
+    return { url: result.secure_url, publicId: result.public_id };
   } catch (err) {
     console.error('Cloudinary upload failed', err);
     return null;
@@ -149,21 +137,36 @@ export async function POST(request: NextRequest) {
         }
 
         // For real create: attempt to upload provided image to Cloudinary (if configured)
+        let uploadFailed = false;
         if (providedImageUrl) {
           try {
             const uploaded = await uploadToCloudinary(providedImageUrl);
             if (uploaded) {
               modelObj.image = uploaded.url;
               modelObj.imagePublicId = uploaded.publicId;
+            } else {
+              // If upload failed for any reason, do not persist the external URL
+              // to avoid copyright/external linking — use a placeholder instead.
+              uploadFailed = true;
+              modelObj.image = `https://placehold.co/400x400?text=${encodeURIComponent(name)}`;
+              modelObj.imagePublicId = `bulk_${Date.now()}`;
+              console.warn('Cloudinary upload returned null for', providedImageUrl);
             }
           } catch (err) {
+            uploadFailed = true;
+            modelObj.image = `https://placehold.co/400x400?text=${encodeURIComponent(name)}`;
+            modelObj.imagePublicId = `bulk_${Date.now()}`;
             console.error('Image upload error for', providedImageUrl, err);
           }
         }
 
         const createdModel = await DeviceModel.create(modelObj);
         created.push({ name, id: createdModel._id });
-        analysis.push({ action: 'create' });
+        if (uploadFailed) {
+          analysis.push({ action: 'create', reason: 'Image upload failed; placeholder used' });
+        } else {
+          analysis.push({ action: 'create' });
+        }
       } catch (err) {
         console.error('Create row error', err);
         analysis.push({ action: 'error', reason: (err as any).message || String(err) });
