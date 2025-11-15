@@ -737,6 +737,39 @@ export function ModelsManagement() {
 
                 {/* Repair Selection Checkboxes */}
                 <div className="space-y-2">
+                  {/* Select all control */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="select-all-repairs"
+                        checked={repairsList.length > 0 && formData.modelRepairs.length === repairsList.length}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            // select all repairs
+                            const all = repairsList.map((repair) => ({
+                              repairId: repair._id,
+                              basePrice: repair.basePrice || 0,
+                              qualityPrices: repair.hasQualityOptions && repair.qualityOptions ?
+                                repair.qualityOptions.map((q: any) => ({
+                                  id: q.id,
+                                  name: q.name,
+                                  description: q.description,
+                                  duration: q.duration,
+                                  price: q.priceMultiplier ? (repair.basePrice || 0) * q.priceMultiplier : (repair.basePrice || 0),
+                                })) : [],
+                            }));
+                            setFormData({ ...formData, modelRepairs: all });
+                          } else {
+                            // deselect all
+                            setFormData({ ...formData, modelRepairs: [] });
+                          }
+                        }}
+                      />
+                      <label htmlFor="select-all-repairs" className="text-sm font-medium cursor-pointer">Select All Repairs</label>
+                    </div>
+                    <div className="text-xs text-muted-foreground">Total: {repairsList.length}</div>
+                  </div>
+
                   <Label className="text-sm font-medium">Available Repair Services</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto border rounded-md p-3">
                     {repairsList.map((repair) => {
