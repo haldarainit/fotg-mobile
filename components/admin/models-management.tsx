@@ -541,7 +541,11 @@ export function ModelsManagement() {
                 Add Model
               </Button>
             </DialogTrigger>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent 
+            className="max-w-3xl max-h-[90vh] overflow-y-auto"
+            onPointerDownOutside={(e) => e.preventDefault()}
+            onEscapeKeyDown={(e) => e.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle>
                 {editingModel ? "Edit Model" : "Add New Model"}
@@ -858,7 +862,9 @@ export function ModelsManagement() {
                                   step="0.01"
                                   value={mr.basePrice}
                                   onChange={(e) => updateModelRepairField(idx, "basePrice", parseFloat(e.target.value) || 0)}
+                                  onWheel={(e) => e.preventDefault()}
                                   placeholder="0.00"
+                                  className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 />
                               </div>
 
@@ -881,8 +887,9 @@ export function ModelsManagement() {
                                             step="0.01"
                                             value={currentQualityPrice}
                                             onChange={(e) => updateModelRepairQualityPrice(idx, qi, parseFloat(e.target.value) || 0)}
+                                            onWheel={(e) => e.preventDefault()}
                                             placeholder="0.00"
-                                            className="w-24"
+                                            className="w-24 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                           />
                                         </div>
                                       );
