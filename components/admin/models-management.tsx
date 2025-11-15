@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,6 +86,36 @@ export function ModelsManagement() {
   });
 
   const DEVICE_TYPES = ["smartphone", "tablet", "laptop"];
+
+  // Prevent number inputs from changing value when user scrolls while focused.
+  // We use a ref so the same handler reference can be added/removed.
+  const wheelHandlerRef = useRef<(e: WheelEvent) => void>(() => {});
+
+  useEffect(() => {
+    // initialize handler
+    wheelHandlerRef.current = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && target.tagName === "INPUT") {
+        const input = target as HTMLInputElement;
+        if (input.type === "number") {
+          e.preventDefault();
+        }
+      }
+    };
+
+    return () => {
+      // cleanup just in case
+      window.removeEventListener("wheel", wheelHandlerRef.current as EventListener, { capture: true } as AddEventListenerOptions);
+    };
+  }, []);
+
+  const disableNumberInputScroll = () => {
+    window.addEventListener("wheel", wheelHandlerRef.current as EventListener, { passive: false, capture: true } as AddEventListenerOptions);
+  };
+
+  const enableNumberInputScroll = () => {
+    window.removeEventListener("wheel", wheelHandlerRef.current as EventListener, { capture: true } as EventListenerOptions);
+  };
 
   // Search & filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -863,6 +893,8 @@ export function ModelsManagement() {
                                   value={mr.basePrice}
                                   onChange={(e) => updateModelRepairField(idx, "basePrice", parseFloat(e.target.value) || 0)}
                                   onWheel={(e) => e.preventDefault()}
+                                  onFocus={() => disableNumberInputScroll()}
+                                  onBlur={() => enableNumberInputScroll()}
                                   placeholder="0.00"
                                   className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 />
@@ -888,6 +920,8 @@ export function ModelsManagement() {
                                             value={currentQualityPrice}
                                             onChange={(e) => updateModelRepairQualityPrice(idx, qi, parseFloat(e.target.value) || 0)}
                                             onWheel={(e) => e.preventDefault()}
+                                            onFocus={() => disableNumberInputScroll()}
+                                            onBlur={() => enableNumberInputScroll()}
                                             placeholder="0.00"
                                             className="w-24 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                           />
