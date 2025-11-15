@@ -850,6 +850,10 @@ export default function GetAQuotePage() {
     }
   };
 
+  const getModelCountForBrand = (brandId: string) => {
+    return models.filter(model => model.brandId === brandId && (!selectedDeviceType || model.deviceType === selectedDeviceType)).length;
+  };
+
   const displayedRepairs = showAllRepairs
     ? getFilteredRepairs()
     : getFilteredRepairs().slice(0, 6);
@@ -1370,30 +1374,38 @@ export default function GetAQuotePage() {
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {getFilteredBrands().map((brand) => (
-                  <button
-                    key={brand.id}
-                    onClick={() => handleBrandSelect(brand)}
-                    className="p-6 border-2 rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center group"
-                  >
-                    {brand.logo ? (
-                      <div className="h-18 w-18 mx-auto flex items-center justify-center">
-                        <Image
-                          src={brand.logo}
-                          alt={brand.name}
-                          width={58}
-                          height={58}
-                          className="object-contain  transition-all"
-                        />
-                      </div>
-                    ) : (
-                      <div className="text-4xl mb-2">
-                        {brand.name.charAt(0)}
-                      </div>
-                    )}
-                    {/* <p className="font-semibold text-sm">{brand.name}</p> */}
-                  </button>
-                ))}
+                {getFilteredBrands().map((brand) => {
+                  const modelCount = getModelCountForBrand(brand.id);
+                  return (
+                    <button
+                      key={brand.id}
+                      onClick={() => handleBrandSelect(brand)}
+                      className="p-6 border-2 rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-center group relative"
+                    >
+                      {modelCount > 0 && (
+                        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold z-10">
+                          {modelCount}
+                        </div>
+                      )}
+                      {brand.logo ? (
+                        <div className="h-18 w-18 mx-auto flex items-center justify-center">
+                          <Image
+                            src={brand.logo}
+                            alt={brand.name}
+                            width={58}
+                            height={58}
+                            className="object-contain  transition-all"
+                          />
+                        </div>
+                      ) : (
+                        <div className="text-4xl mb-2">
+                          {brand.name.charAt(0)}
+                        </div>
+                      )}
+                      {/* <p className="font-semibold text-sm">{brand.name}</p> */}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
