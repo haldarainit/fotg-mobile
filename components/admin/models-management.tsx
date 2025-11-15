@@ -652,76 +652,139 @@ export function ModelsManagement() {
               </div>
 
               {/* Model-specific Repairs */}
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <Label>Repairs / Services for this Model</Label>
-                <p className="text-xs text-muted-foreground">Assign repair services to this model and set model-specific prices. You can also set prices per quality option if available.</p>
-                {formData.modelRepairs.map((mr, idx) => {
-                  const selectedRepair = repairsList.find((r) => r._id === mr.repairId) || repairsList.find((r) => r.repairId === mr.repairId);
-                  return (
-                    <Card key={idx} className="p-3">
-                      <div className="flex gap-2 items-center">
-                        <Select
-                          value={mr.repairId || ""}
-                          onValueChange={(val) => updateModelRepairField(idx, "repairId", val)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select repair" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {repairsList.map((r) => (
-                              <SelectItem key={r._id} value={r._id}>
-                                {r.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                <p className="text-xs text-muted-foreground">Select repair services for this model and set model-specific prices. Selected services will show below for pricing configuration.</p>
 
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={mr.basePrice}
-                          onChange={(e) => updateModelRepairField(idx, "basePrice", parseFloat(e.target.value) || 0)}
-                          placeholder="Model price"
-                          className="w-40"
-                        />
-
-                        <Button type="button" variant="destructive" size="icon" onClick={() => removeModelRepair(idx)}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      {/* Quality prices override */}
-                      {selectedRepair && selectedRepair.hasQualityOptions && selectedRepair.qualityOptions && (
-                        <div className="mt-3 grid grid-cols-1 gap-2">
-                          <Label className="text-sm">Quality option prices</Label>
-                          {selectedRepair.qualityOptions.map((q: any, qi: number) => (
-                            <div key={q.id} className="flex gap-2 items-center">
-                              <div className="flex-1">
-                                <p className="text-sm font-medium">{q.name}</p>
-                                <p className="text-xs text-muted-foreground">{q.description}</p>
-                              </div>
-                              <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value={(mr.qualityPrices && mr.qualityPrices[qi] && mr.qualityPrices[qi].price) || ""}
-                                onChange={(e) => updateModelRepairQualityPrice(idx, qi, parseFloat(e.target.value) || 0)}
-                                placeholder="Price"
-                                className="w-36"
-                              />
-                            </div>
-                          ))}
+                {/* Repair Selection Checkboxes */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Available Repair Services</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-60 overflow-y-auto border rounded-md p-3">
+                    {repairsList.map((repair) => {
+                      const isSelected = formData.modelRepairs.some(mr => mr.repairId === repair._id);
+                      return (
+                        <div key={repair._id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`repair-${repair._id}`}
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                // Add repair with default price
+                                const newRepair = {
+                                  repairId: repair._id,
+                                  basePrice: repair.basePrice || 0,
+                                  qualityPrices: repair.hasQualityOptions && repair.qualityOptions ?
+                                    repair.qualityOptions.map((q: any) => ({
+                                      id: q.id,
+                                      name: q.name,
+                                      description: q.description,
+                                      duration: q.duration,
+                                      price: q.priceMultiplier ? repair.basePrice * q.priceMultiplier : repair.basePrice
+                                    })) : []
+                                };
+                                setFormData({
+                                  ...formData,
+                                  modelRepairs: [...formData.modelRepairs, newRepair]
+                                });
+                              } else {
+                                // Remove repair
+                                setFormData({
+                                  ...formData,
+                                  modelRepairs: formData.modelRepairs.filter(mr => mr.repairId !== repair._id)
+                                });
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`repair-${repair._id}`}
+                            className="text-sm font-medium cursor-pointer flex-1"
+                          >
+                            {repair.name}
+                            {repair.hasQualityOptions && (
+                              <Badge variant="secondary" className="ml-2 text-xs">
+                                {repair.qualityOptions?.length || 0} options
+                              </Badge>
+                            )}
+                          </label>
                         </div>
-                      )}
-                    </Card>
-                  );
-                })}
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {formData.modelRepairs.length} repair service(s)
+                  </p>
+                </div>
 
-                <Button type="button" variant="outline" size="sm" onClick={addModelRepair}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Repair to Model
-                </Button>
+                {/* Selected Repairs Pricing */}
+                {formData.modelRepairs.length > 0 && (
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Configure Pricing for Selected Services</Label>
+                    <div className="space-y-3">
+                      {formData.modelRepairs.map((mr, idx) => {
+                        const selectedRepair = repairsList.find((r) => r._id === mr.repairId) || repairsList.find((r) => r.repairId === mr.repairId);
+                        return (
+                          <Card key={idx} className="p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-medium text-sm">{selectedRepair?.name || 'Unknown Repair'}</h4>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeModelRepair(idx)}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label className="text-xs">Base Price ($)</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={mr.basePrice}
+                                  onChange={(e) => updateModelRepairField(idx, "basePrice", parseFloat(e.target.value) || 0)}
+                                  placeholder="0.00"
+                                />
+                              </div>
+
+                              {/* Quality prices override */}
+                              {selectedRepair && selectedRepair.hasQualityOptions && selectedRepair.qualityOptions && (
+                                <div className="space-y-2 md:col-span-2">
+                                  <Label className="text-xs">Quality Option Prices</Label>
+                                  <div className="grid grid-cols-1 gap-2">
+                                    {selectedRepair.qualityOptions.map((q: any, qi: number) => {
+                                      const currentQualityPrice = mr.qualityPrices?.[qi]?.price || (q.priceMultiplier ? mr.basePrice * q.priceMultiplier : mr.basePrice);
+                                      return (
+                                        <div key={q.id} className="flex gap-2 items-center p-2 border rounded">
+                                          <div className="flex-1">
+                                            <div className="text-xs font-medium">{q.name}</div>
+                                            {q.description && <div className="text-xs text-muted-foreground">{q.description}</div>}
+                                          </div>
+                                          <Input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value={currentQualityPrice}
+                                            onChange={(e) => updateModelRepairQualityPrice(idx, qi, parseFloat(e.target.value) || 0)}
+                                            placeholder="0.00"
+                                            className="w-24"
+                                          />
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Active Status */}
