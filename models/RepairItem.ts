@@ -25,9 +25,23 @@ const RepairItemSchema = new mongoose.Schema(
       required: false,
       trim: true,
     },
+    subdescription: {
+      type: String,
+      required: false,
+      trim: true,
+    },
     icon: {
       type: String,
-      required: true,
+      required: false,
+      default: "",
+    },
+    iconPublicId: {
+      type: String,
+      required: false,
+    },
+    iconUrl: {
+      type: String,
+      required: false,
     },
     deviceTypes: [
       {

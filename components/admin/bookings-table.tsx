@@ -37,6 +37,7 @@ interface Booking {
   email: string;
   phone: string;
   customerType: "private" | "business";
+  businessName?: string;
   deviceType: string;
   brandName: string;
   modelName: string;
@@ -66,6 +67,7 @@ interface Booking {
     discountRuleName?: string;
     tax: number;
     taxPercentage: number;
+    includeTax?: boolean;
     total: number;
   };
   notes?: string;
@@ -391,6 +393,12 @@ export function BookingsTable() {
                     <span className="text-muted-foreground">Customer Type:</span>
                     <p className="font-medium capitalize">{selectedBooking.customerType}</p>
                   </div>
+                  {selectedBooking.customerType === "business" && selectedBooking.businessName && (
+                    <div>
+                      <span className="text-muted-foreground">Business Name:</span>
+                      <p className="font-medium">{selectedBooking.businessName}</p>
+                    </div>
+                  )}
                   <div>
                     <span className="text-muted-foreground">Email:</span>
                     <p className="font-medium">{selectedBooking.email}</p>
@@ -525,10 +533,21 @@ export function BookingsTable() {
                       <span>${selectedBooking.pricing.tax.toFixed(2)}</span>
                     </div>
                   )}
+                  {selectedBooking.pricing.taxPercentage > 0 && selectedBooking.pricing.includeTax === false && (
+                    <div className="flex justify-between text-orange-600">
+                      <span>Tax Excluded:</span>
+                      <span>${(selectedBooking.pricing.subtotal - selectedBooking.pricing.discount) * (selectedBooking.pricing.taxPercentage / 100).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold text-lg border-t pt-2">
                     <span>Total:</span>
                     <span>${selectedBooking.pricing.total.toFixed(2)}</span>
                   </div>
+                  {selectedBooking.pricing.taxPercentage > 0 && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {selectedBooking.pricing.includeTax !== false ? `Includes ${selectedBooking.pricing.taxPercentage}% tax` : `Excludes ${selectedBooking.pricing.taxPercentage}% tax`}
+                    </div>
+                  )}
                 </div>
               </div>
 

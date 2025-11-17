@@ -48,30 +48,13 @@ import Image from "next/image";
 import { Brand, DeviceModel, RepairItem } from "@/lib/repairData";
 import { Tabs,TabsTrigger , TabsList,TabsContent} from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 
 const DEVICE_TYPES = [
   { id: "smartphone", label: "SMARTPHONE", icon: Smartphone },
   { id: "tablet", label: "TABLET", icon: Tablet },
   { id: "laptop", label: "LAPTOP", icon: Laptop },
 ];
-
-// Helper function to get icon for repair type
-const getRepairIcon = (repairId: string) => {
-  const iconMap: Record<string, any> = {
-    screen: Monitor,
-    battery: Battery,
-    "charging-port": Power,
-    "back-glass": Shield,
-    camera: Camera,
-    speaker: Volume2,
-    microphone: Mic,
-    motherboard: Cpu,
-    "water-damage": Droplets,
-    investigation: Search,
-    default: Wrench,
-  };
-  return iconMap[repairId] || iconMap.default;
-};
 
 // Helper function to format duration
 const formatDuration = (duration: string) => {
@@ -92,14 +75,12 @@ const SERVICE_METHODS = [
   {
     id: "location",
     title: "At Our Location",
-    subtitle: "Visit our repair center for instant service",
-    badge: "INSTANT",
+    subtitle: "Mobile Repair (FOTG Only)",
   },
   {
-    id: "pickup",
+    id: "pickup", 
     title: "Pick-up & Delivery",
-    subtitle: "We'll collect and return your device",
-    badge: "CONVENIENT",
+    subtitle: "Repaired within 24 hours",
   },
 ];
 
@@ -174,7 +155,9 @@ export default function GetAQuotePage() {
     phone: "",
     email: "",
     notes: "",
+    businessName: "",
   });
+  const [includeTax, setIncludeTax] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Backend data state
@@ -190,15 +173,63 @@ export default function GetAQuotePage() {
   // Combined loading state for backward compatibility
   const isLoadingData = isLoadingBrands || isLoadingModels || isLoadingRepairs;
 
+  // Helper function to get icon for repair type
+  const getRepairIcon = (repairId: string) => {
+    // First check if the repair has an uploaded icon
+    const repair = repairs.find((r: RepairItem) => r.id === repairId);
+    if (repair?.iconUrl) {
+      return repair.iconUrl;
+    }
+    
+    // Fallback to Lucide icons based on icon name
+    const iconMap: Record<string, any> = {
+      screen: Monitor,
+      battery: Battery,
+      "charging-port": Power,
+      "back-glass": Shield,
+      camera: Camera,
+      speaker: Volume2,
+      microphone: Mic,
+      motherboard: Cpu,
+      "water-damage": Droplets,
+      investigation: Search,
+      default: Wrench,
+    };
+    return iconMap[repair?.icon || "default"] || iconMap.default;
+  };
+
+  // Helper component to render repair icon
+  const RepairIconComponent = ({ repairId, className }: { repairId: string, className: string }) => {
+    const icon = getRepairIcon(repairId);
+    
+    if (typeof icon === 'string') {
+      // It's an uploaded image URL
+      const size = className.includes('h-10') ? 40 : className.includes('h-8') ? 32 : className.includes('h-5') ? 20 : 24; // h-10 = 40px, h-8 = 32px, h-5 = 20px, h-6 = 24px
+      return (
+        <Image
+          src={icon}
+          alt="Repair icon"
+          width={size}
+          height={size}
+          className="object-contain"
+        />
+      );
+    } else {
+      // It's a Lucide icon component
+      const IconComponent = icon;
+      return <IconComponent className={className} />;
+    }
+  };
+
 // Helper function to render variants with show more/less
-const renderVariants = (variants: string[], modelId: string, showAllByDefault: boolean = false) => {
+const renderVariants = (variants: string[], modelId: string, showAllByDefault: boolean = false, center: boolean = true) => {
   const maxVisible = 2;
   const isExpanded = showAllByDefault || expandedVariants.has(modelId);
   const visibleVariants = isExpanded ? variants : variants.slice(0, maxVisible);
   const hasMore = variants.length > maxVisible;
 
   return (
-    <div className="text-xs text-muted-foreground text-center mt-1 relative group">
+    <div className={`text-xs text-muted-foreground mt-1 relative group ${center ? 'text-center' : ''}`}>
       <div className="transition-all duration-200">
         {visibleVariants.join(", ")}
         {hasMore && !isExpanded && (
@@ -340,8 +371,10 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
               price: r.price ?? r.basePrice ?? 0,
               duration: r.duration || r.estimatedTime || "",
               description: r.description || r.desc || "",
+              subdescription: r.subdescription || "",
               badge: r.badge || r.label,
               icon: r.icon || r.iconName || "",
+              iconUrl: r.iconUrl || "",
               deviceTypes: r.deviceTypes || r.applicableDeviceTypes || [],
               // Pass through quality options from backend
               hasQualityOptions: r.hasQualityOptions || false,
@@ -740,10 +773,10 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
 
     const discount = (subtotal * percentTotal) / 100 + fixedTotal;
 
-    // Calculate tax
+    // Calculate tax conditionally
     const taxPercentage = settings?.taxPercentage || 0;
     const afterDiscount = Math.max(0, subtotal - discount);
-    const tax = (afterDiscount * taxPercentage) / 100;
+    const tax = includeTax ? (afterDiscount * taxPercentage) / 100 : 0;
     const total = afterDiscount + tax;
 
     return {
@@ -755,6 +788,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
       tax,
       taxPercentage,
       total,
+      includeTax,
     };
   };
 
@@ -828,6 +862,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
         phone: formData.phone,
         email: formData.email,
         notes: formData.notes,
+        businessName: customerType === "business" ? formData.businessName : undefined,
         // Add booking data for location service
         bookingDate: serviceMethod === "location" ? bookingDate?.toISOString() : undefined,
         bookingTimeSlot: serviceMethod === "location" ? bookingTimeSlot : undefined,
@@ -843,6 +878,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
           discountPercentTotal: pricing.combinedDiscountPercent || 0,
           tax: pricing.tax,
           taxPercentage: pricing.taxPercentage,
+          includeTax: pricing.includeTax,
           total: pricing.total,
         },
         total: pricing.total,
@@ -875,12 +911,14 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
           setSelectedRepairs([]);
           setServiceMethod("");
           setCustomerType("private");
+          setIncludeTax(true);
           setFormData({
             firstName: "",
             lastName: "",
             phone: "",
             email: "",
             notes: "",
+            businessName: "",
           });
         }, 2000);
       } else {
@@ -1677,7 +1715,6 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                 </Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {displayedRepairs.map((repair) => {
-                    const RepairIcon = getRepairIcon(repair.id);
                     const isSelected = selectedRepairs.includes(repair.id);
                     
                     // Get the model-specific pricing for this repair
@@ -1715,9 +1752,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                         <div className="p-6">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                <RepairIcon className="h-5 w-5 text-primary" />
-                              </div>
+                              <RepairIconComponent repairId={repair.id} className="h-10 w-10 text-primary" />
                               <div>
                                 <h3 className="font-bold text-lg">
                                   {repair.name}
@@ -1748,14 +1783,11 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                               </Badge>
                             ) : null;
                           })()}
-                          <p className="text-sm text-muted-foreground mb-3">
-                            <span className="bg-gray-100 text-red-600 px-2 py-1 rounded inline-block">
-                              {(() => {
-                                console.log(`Repair ${repair.id} description:`, repair?.description);
-                                return repair?.description || "Professional repair service for your device";
-                              })()}
-                            </span>
-                          </p>
+                          {repair.subdescription && (
+                            <p className="text-sm text-green-800 bg-green-50 px-2 py-1 rounded mb-3 border border-green-200">
+                              {repair.subdescription}
+                            </p>
+                          )}
                           <div className="flex items-baseline gap-2">
                             <p className="text-2xl font-bold text-primary">
                               {(() => {
@@ -1773,6 +1805,9 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                               </span>
                             )}
                           </div>
+                          <p className="text-sm text-gray-600 mt-2">
+                            {repair.description || "Professional repair service for your device"}
+                          </p>
                         </div>
                       </Card>
                     );
@@ -1815,7 +1850,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                       <p className="text-sm text-muted-foreground">
                         {selectedBrand?.name || selectedModel?.brandName}
                       </p>
-                      {selectedModel && renderVariants(selectedModel.variants, selectedModel.id)}
+                      {selectedModel && renderVariants(selectedModel.variants, selectedModel.id, false, false)}
                       <p className="text-xs text-muted-foreground mt-1">
                         Color:{" "}
                         {selectedModel?.colors.find(
@@ -1834,7 +1869,6 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                         (r) => r.id === repairId
                       );
                       if (!repair) return null;
-                      const RepairIcon = getRepairIcon(repair.id);
                       const quality = repairPartQuality[repairId];
                       
                       return (
@@ -1843,9 +1877,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                           className="flex items-center justify-between py-2 border-b"
                         >
                           <div className="flex items-center gap-3 flex-1">
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                              <RepairIcon className="h-4 w-4 text-primary" />
-                            </div>
+                            <RepairIconComponent repairId={repair.id} className="h-8 w-8 text-primary" />
                             <div className="flex-1">
                               <p className="font-medium text-sm">
                                 {repair.name}
@@ -1897,8 +1929,36 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                   <div className="pt-4 space-y-2">
                     {(() => {
                       const pricing = calculatePricing();
+                      
+                      // Check for combo discount rules (rules that require multiple repairs)
+                      const comboDiscountRules = settings?.discountRules?.filter((rule: any) => 
+                        rule.active && rule.minRepairs && rule.minRepairs > 1
+                      ) || [];
+                      
+                      const hasComboDiscounts = comboDiscountRules.length > 0;
+                      const nextRepairThreshold = comboDiscountRules.length > 0 
+                        ? Math.min(...comboDiscountRules.map((r: any) => r.minRepairs))
+                        : null;
+                      const canApplyComboDiscount = nextRepairThreshold && selectedRepairs.length >= nextRepairThreshold - 1;
+                      
                       return (
                         <>
+                          {hasComboDiscounts && canApplyComboDiscount && (
+                            <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-lg p-4 mb-4">
+                              <div className="flex items-center gap-3">
+                                <div className="text-2xl">🎁</div>
+                                <div className="flex-1">
+                                  <p className="font-semibold text-green-800">
+                                    Add an extra repair and receive {comboDiscountRules[0]?.value}% discount!
+                                  </p>
+                                  <p className="text-sm text-green-600">
+                                    Save more when you select multiple services
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="flex items-center justify-between text-sm">
                             <p className="text-muted-foreground">Subtotal</p>
                             <p className="font-semibold">${pricing.subtotal.toFixed(2)}</p>
@@ -1936,15 +1996,21 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             </div>
                           )}
 
-                          {pricing.taxPercentage > 0 && (
-                            <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2">
                               <p className="text-muted-foreground">Tax ({pricing.taxPercentage}%)</p>
-                              <p className="font-semibold">${pricing.tax.toFixed(2)}</p>
+                              <Badge variant={includeTax ? "default" : "secondary"} className="text-xs">
+                                {includeTax ? "Included" : "Excluded"}
+                              </Badge>
+                              <Switch checked={includeTax} onCheckedChange={setIncludeTax} />
                             </div>
-                          )}
+                            <p className="font-semibold">${includeTax ? pricing.tax.toFixed(2) : "0.00"}</p>
+                          </div>
                           <div className="flex items-center justify-between pt-2 border-t">
                             <p className="text-lg font-bold">Total</p>
-                            <p className="text-3xl font-bold text-primary">${pricing.total.toFixed(2)}</p>
+                            <p className="text-3xl font-bold text-primary">
+                              ${includeTax ? pricing.total.toFixed(2) : (pricing.total - pricing.tax).toFixed(2)}
+                            </p>
                           </div>
                         </>
                       );
@@ -2004,12 +2070,11 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                               <div className="flex items-center gap-2 mb-1">
                                 <ServiceIcon className="h-5 w-5 text-primary" />
                                 <p className="font-semibold">{method.title}</p>
-                                <Badge
-                                  variant="destructive"
-                                  className="ml-auto"
-                                >
-                                  {method.badge}
-                                </Badge>
+                                {(method.id === "location" || method.id === "pickup") && (
+                                  <Badge variant="secondary" className="text-red-600 bg-red-50 border-red-200 ml-auto">
+                                    FREE
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-sm text-muted-foreground">
                                 {method.subtitle}
@@ -2247,6 +2312,25 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                     </div>
                   </div>
 
+                  {customerType === "business" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="businessName">
+                        BUSINESS NAME <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="businessName"
+                        required
+                        value={formData.businessName}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            businessName: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
+
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -2382,7 +2466,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                         <p className="text-sm text-muted-foreground">
                           {selectedBrand?.name}
                         </p>
-                        {selectedModel && renderVariants(selectedModel.variants, selectedModel.id)}
+                        {selectedModel && renderVariants(selectedModel.variants, selectedModel.id, false, false)}
                         <p className="text-xs text-muted-foreground mt-1">
                           Color:{" "}
                           {selectedModel?.colors.find(
@@ -2401,7 +2485,6 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                           (r) => r.id === repairId
                         );
                         if (!repair) return null;
-                        const RepairIcon = getRepairIcon(repair.id);
                         const quality = repairPartQuality[repairId];
                         
                         return (
@@ -2410,7 +2493,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             className="flex items-center justify-between py-2 border-b"
                           >
                             <div className="flex items-center gap-2 flex-1">
-                              <RepairIcon className="h-4 w-4 text-primary shrink-0" />
+                              <RepairIconComponent repairId={repair.id} className="h-5 w-5 text-primary shrink-0" />
                               <div className="flex-1">
                                 <p className="text-sm font-medium">
                                   {repair.name}
@@ -2451,6 +2534,28 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                     </div>
 
                     <div className="border-t pt-4 space-y-2">
+                      {/* Tax Toggle */}
+                      {(settings?.taxPercentage || 0) > 0 && (
+                        <div className="flex items-center justify-between py-2">
+                          <Label htmlFor="include-tax" className="text-sm font-medium">
+                            Include Tax ({settings?.taxPercentage || 0}%)
+                          </Label>
+                          <button
+                            id="include-tax"
+                            onClick={() => setIncludeTax(!includeTax)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              includeTax ? 'bg-primary' : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                includeTax ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                      )}
+
                       {(() => {
                         const pricing = calculatePricing();
                         return (
@@ -2490,7 +2595,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                               </div>
                             )}
 
-                            {pricing.taxPercentage > 0 && (
+                            {pricing.taxPercentage > 0 && includeTax && (
                               <div className="flex items-center justify-between text-sm">
                                 <p className="text-muted-foreground">Tax ({pricing.taxPercentage}%)</p>
                                 <p className="font-semibold">${pricing.tax.toFixed(2)}</p>
@@ -2501,8 +2606,11 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 <p className="font-bold text-lg">Total</p>
                                 <p className="text-3xl font-bold text-primary">${pricing.total.toFixed(2)}</p>
                               </div>
-                              {pricing.taxPercentage > 0 && (
+                              {pricing.taxPercentage > 0 && includeTax && (
                                 <p className="text-xs text-muted-foreground mt-1">Incl. {pricing.taxPercentage}% tax</p>
+                              )}
+                              {pricing.taxPercentage > 0 && !includeTax && (
+                                <p className="text-xs text-muted-foreground mt-1">Excl. {pricing.taxPercentage}% tax</p>
                               )}
                               {pricing.discount > 0 && (
                                 <p className="text-xs text-green-600 mt-1">You saved ${pricing.discount.toFixed(2)}!</p>

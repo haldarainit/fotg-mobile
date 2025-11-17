@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       phone,
       email,
       notes,
+      businessName,
       total,
       pricing,
       bookingDate,
@@ -32,6 +33,14 @@ export async function POST(request: NextRequest) {
     if (!firstName || !lastName || !phone || !email || !serviceMethod) {
       return NextResponse.json(
         { error: "All required fields must be filled" },
+        { status: 400 }
+      );
+    }
+
+    // Validate business name if customer type is business
+    if (customerType === "business" && !businessName) {
+      return NextResponse.json(
+        { error: "Business name is required for business customers" },
         { status: 400 }
       );
     }
@@ -144,6 +153,7 @@ export async function POST(request: NextRequest) {
       email,
       phone,
       customerType: customerType || "private",
+      businessName: customerType === "business" ? businessName : undefined,
       deviceType,
       brandId: brand?.id,
       brandName: brand?.name,
@@ -261,6 +271,12 @@ export async function POST(request: NextRequest) {
                     </span>
                   </td>
                 </tr>
+                ${customerType === "business" && businessName ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #666;"><strong>Business Name:</strong></td>
+                  <td style="padding: 8px 0; color: #333;">${businessName}</td>
+                </tr>
+                ` : ""}
               </table>
             </div>
 
@@ -351,6 +367,16 @@ export async function POST(request: NextRequest) {
                 `
                     : ""
                 }
+                ${
+                  pricing.taxPercentage > 0 && pricing.includeTax === false
+                    ? `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.3);">
+                  <span style="color: rgba(255,255,255,0.9);">Tax Excluded:</span>
+                  <span style="font-weight: bold; color: #f59e0b;">$${(pricing.subtotal - pricing.discount) * (pricing.taxPercentage / 100).toFixed(2)}</span>
+                </div>
+                `
+                    : ""
+                }
               </div>
               `
                   : ""
@@ -362,7 +388,9 @@ export async function POST(request: NextRequest) {
                 )}</p>
                 ${
                   pricing && pricing.taxPercentage > 0
-                    ? `<p style="color: rgba(255,255,255,0.8); margin: 10px 0 0 0; font-size: 12px;">Including ${pricing.taxPercentage}% tax</p>`
+                    ? pricing.includeTax !== false
+                      ? `<p style="color: rgba(255,255,255,0.8); margin: 10px 0 0 0; font-size: 12px;">Including ${pricing.taxPercentage}% tax</p>`
+                      : `<p style="color: rgba(255,255,255,0.8); margin: 10px 0 0 0; font-size: 12px;">Excluding ${pricing.taxPercentage}% tax</p>`
                     : ""
                 }
                 ${

@@ -7,6 +7,7 @@ export interface IBooking extends Document {
   email: string;
   phone: string;
   customerType: "private" | "business";
+  businessName?: string;
   
   // Device Information
   deviceType: string;
@@ -50,6 +51,7 @@ export interface IBooking extends Document {
     discountRuleName?: string;
     tax: number;
     taxPercentage: number;
+    includeTax: boolean;
     total: number;
   };
   
@@ -74,6 +76,7 @@ const BookingSchema = new Schema<IBooking>(
       enum: ["private", "business"], 
       required: true 
     },
+    businessName: { type: String },
     
     // Device Information
     deviceType: { type: String, required: true },
@@ -129,6 +132,7 @@ const BookingSchema = new Schema<IBooking>(
       discountRuleName: { type: String },
       tax: { type: Number, default: 0 },
       taxPercentage: { type: Number, default: 0 },
+      includeTax: { type: Boolean, default: true },
       total: { type: Number, required: true },
     },
     

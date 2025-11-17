@@ -64,9 +64,12 @@ export async function POST(request: NextRequest) {
     const { 
       name, 
       icon, 
+      iconUrl,
+      iconPublicId,
       deviceTypes, 
       duration,
       description,
+      subdescription,
       hasQualityOptions,
       qualityOptions 
     } = body;
@@ -104,9 +107,12 @@ export async function POST(request: NextRequest) {
     const repair = await RepairItem.create({
       name: name.trim(),
       icon: icon || "",
+      iconUrl: iconUrl || "",
+      iconPublicId: iconPublicId || "",
       deviceTypes,
       duration,
       description: description || "",
+      subdescription: subdescription || "",
       hasQualityOptions: hasQualityOptions || false,
       qualityOptions: qualityOptions || [],
       position: currentCount,
@@ -139,9 +145,12 @@ export async function PATCH(request: NextRequest) {
       id, 
       name, 
       icon, 
+      iconUrl,
+      iconPublicId,
       deviceTypes, 
       duration,
       description,
+      subdescription,
       hasQualityOptions,
       qualityOptions,
       active 
@@ -157,9 +166,12 @@ export async function PATCH(request: NextRequest) {
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (icon !== undefined) updateData.icon = icon;
+    if (iconUrl !== undefined) updateData.iconUrl = iconUrl;
+    if (iconPublicId !== undefined) updateData.iconPublicId = iconPublicId;
     if (deviceTypes !== undefined) updateData.deviceTypes = deviceTypes;
     if (duration !== undefined) updateData.duration = duration;
     if (description !== undefined) updateData.description = description;
+    if (subdescription !== undefined) updateData.subdescription = subdescription;
     if (hasQualityOptions !== undefined) updateData.hasQualityOptions = hasQualityOptions;
     if (qualityOptions !== undefined) updateData.qualityOptions = qualityOptions;
     if (active !== undefined) updateData.active = active;

@@ -25,7 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Loader2, X, RefreshCw, GripVertical } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, X, RefreshCw, GripVertical, Upload } from "lucide-react";
+import Image from "next/image";
 import {
   DndContext,
   closestCenter,
@@ -51,10 +52,13 @@ interface RepairItem {
   name: string;
   repairId: string;
   icon: string;
+  iconPublicId?: string;
+  iconUrl?: string;
   deviceTypes: string[];
   basePrice: number;
   duration: string;
   description: string;
+  subdescription?: string;
   hasQualityOptions: boolean;
   qualityOptions: Array<{
     id: string;
@@ -155,6 +159,8 @@ export function RepairsManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingRepair, setEditingRepair] = useState<RepairItem | null>(null);
+  const [iconFile, setIconFile] = useState<File | null>(null);
+  const [iconPreview, setIconPreview] = useState<string>("");
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -169,6 +175,7 @@ export function RepairsManagement() {
     deviceTypes: [] as string[],
     duration: "",
     description: "",
+    subdescription: "",
     hasQualityOptions: false,
     qualityOptions: [] as Array<{
       id: string;
@@ -201,6 +208,46 @@ export function RepairsManagement() {
       toast.error("Failed to load repairs");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIconFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setIconPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadIcon = async (): Promise<{ url: string; publicId: string } | null> => {
+    if (!iconFile) return null;
+
+    const formDataUpload = new FormData();
+    formDataUpload.append("file", iconFile);
+    formDataUpload.append("folder", "repairs");
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formDataUpload,
+        credentials: "include", // Include cookies for authentication
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return { url: data.data.url, publicId: data.data.publicId };
+      } else {
+        const errorData = await response.json();
+        console.error("Upload failed:", errorData.error);
+        return null;
+      }
+    } catch (error) {
+      console.error("Error uploading icon:", error);
+      return null;
     }
   };
 
@@ -251,11 +298,40 @@ export function RepairsManagement() {
     setIsSubmitting(true);
 
     try {
+      let iconUrl = formData.icon;
+      let iconPublicId = editingRepair?.iconPublicId || "";
+
+      // Upload new icon if selected
+      if (iconFile) {
+        const uploadResult = await uploadIcon();
+        if (uploadResult) {
+          iconUrl = uploadResult.url;
+          iconPublicId = uploadResult.publicId;
+        } else {
+          toast.error("Failed to upload icon");
+          setIsSubmitting(false);
+          return;
+        }
+      } else if (editingRepair && !iconFile) {
+        // Keep existing icon if editing and no new file selected
+        iconUrl = editingRepair.iconUrl || editingRepair.icon;
+        iconPublicId = editingRepair.iconPublicId || "";
+      }
+
       const url = `/api/admin/repairs`;
 
       const body = editingRepair
-        ? JSON.stringify({ ...formData, id: editingRepair._id })
-        : JSON.stringify(formData);
+        ? JSON.stringify({ 
+            ...formData, 
+            id: editingRepair._id,
+            iconUrl,
+            iconPublicId
+          })
+        : JSON.stringify({
+            ...formData,
+            iconUrl,
+            iconPublicId
+          });
 
       const response = await fetch(url, {
         method: editingRepair ? "PATCH" : "POST",
@@ -317,6 +393,7 @@ export function RepairsManagement() {
       deviceTypes: repair.deviceTypes,
       duration: repair.duration,
       description: repair.description,
+      subdescription: repair.subdescription || "",
       hasQualityOptions: repair.hasQualityOptions,
       qualityOptions: (repair.qualityOptions || []).map(q => ({
         id: q.id,
@@ -325,6 +402,8 @@ export function RepairsManagement() {
       })),
       active: repair.active,
     });
+    setIconFile(null);
+    setIconPreview(repair.iconUrl || "");
     setIsDialogOpen(true);
   };
 
@@ -335,11 +414,14 @@ export function RepairsManagement() {
       deviceTypes: [],
       duration: "",
       description: "",
+      subdescription: "",
       hasQualityOptions: false,
       qualityOptions: [],
       active: true,
     });
     setEditingRepair(null);
+    setIconFile(null);
+    setIconPreview("");
   };
 
   const handleDeviceTypeToggle = (typeId: string) => {
@@ -440,20 +522,41 @@ export function RepairsManagement() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                {/* Icon */}
+                {/* Icon Upload */}
                 <div className="space-y-2">
-                  <Label htmlFor="icon">Icon Name</Label>
-                  <Input
-                    id="icon"
-                    value={formData.icon}
-                    onChange={(e) =>
-                      setFormData({ ...formData, icon: e.target.value })
-                    }
-                    placeholder="e.g., monitor, battery"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Lucide icon name
-                  </p>
+                  <Label>Repair Icon</Label>
+                  <div className="flex items-center gap-4">
+                    {iconPreview && (
+                      <div className="relative w-16 h-16 border rounded-lg overflow-hidden">
+                        <Image
+                          src={iconPreview}
+                          alt="Icon preview"
+                          fill
+                          className="object-contain p-2"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIconPreview("");
+                            setIconFile(null);
+                          }}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleIconChange}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Upload repair icon (PNG, JPG, SVG recommended)
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Duration */}
@@ -483,6 +586,20 @@ export function RepairsManagement() {
                   placeholder="Describe the repair service..."
                   rows={3}
                   required
+                />
+              </div>
+
+              {/* Subdescription */}
+              <div className="space-y-2">
+                <Label htmlFor="subdescription">Subdescription (Optional)</Label>
+                <Textarea
+                  id="subdescription"
+                  value={formData.subdescription}
+                  onChange={(e) =>
+                    setFormData({ ...formData, subdescription: e.target.value })
+                  }
+                  placeholder="Additional details or notes..."
+                  rows={2}
                 />
               </div>
 

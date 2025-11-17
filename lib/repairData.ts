@@ -23,8 +23,10 @@ export interface RepairItem {
   price: number;
   duration: string;
   description: string;
+  subdescription?: string;
   badge?: string;
   icon: string;
+  iconUrl?: string;
   deviceTypes: string[]; // smartphone, tablet, laptop
 }
 
