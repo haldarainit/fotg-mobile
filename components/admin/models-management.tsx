@@ -31,8 +31,27 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Loader2, X, RefreshCw } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, X, RefreshCw, GripVertical, ArrowUpDown } from "lucide-react";
 import Image from "next/image";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Brand {
   _id: string;
@@ -54,6 +73,120 @@ interface DeviceModel {
   variants: string[];
   colors: Array<{ id: string; name: string; hex: string }>;
   active: boolean;
+  position?: number;
+}
+
+interface SortableRowProps {
+  model: DeviceModel;
+  onEdit: (model: DeviceModel) => void;
+  onDelete: (model: DeviceModel) => void;
+  isReorderMode: boolean;
+}
+
+function SortableRow({ model, onEdit, onDelete, isReorderMode }: SortableRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: model._id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell>
+        {isReorderMode ? (
+          <div className="flex items-center gap-2">
+            <button
+              className="cursor-grab hover:text-primary transition-colors"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+            <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+              {model.image ? (
+                <Image
+                  src={model.image}
+                  alt={model.name}
+                  width={48}
+                  height={48}
+                  className="object-cover"
+                />
+              ) : (
+                <div className="text-xs text-gray-500">No image</div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+            {model.image ? (
+              <Image
+                src={model.image}
+                alt={model.name}
+                width={48}
+                height={48}
+                className="object-cover"
+              />
+            ) : (
+              <div className="text-xs text-gray-500">No image</div>
+            )}
+          </div>
+        )}
+      </TableCell>
+      <TableCell className="font-medium">{model.name}</TableCell>
+      <TableCell>{model.brandId?.name || "Unknown"}</TableCell>
+      <TableCell>
+        <Badge variant="outline">{model.deviceType}</Badge>
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1">
+          {model.variants.slice(0, 2).map((variant, idx) => (
+            <Badge key={idx} variant="secondary" className="text-xs">
+              {variant}
+            </Badge>
+          ))}
+          {model.variants.length > 2 && (
+            <Badge variant="secondary" className="text-xs">
+              +{model.variants.length - 2}
+            </Badge>
+          )}
+        </div>
+      </TableCell>
+      <TableCell>
+        <Badge variant={model.active ? "default" : "secondary"}>
+          {model.active ? "Active" : "Inactive"}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => onEdit(model)}
+            disabled={isReorderMode}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="destructive"
+            size="icon"
+            onClick={() => onDelete(model)}
+            disabled={isReorderMode}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export function ModelsManagement() {
@@ -78,6 +211,14 @@ export function ModelsManagement() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalModels, setTotalModels] = useState(0);
   const modelsPerPage = 20;
+  const [isReorderMode, setIsReorderMode] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const [formData, setFormData] = useState({
     name: "",
@@ -137,9 +278,11 @@ export function ModelsManagement() {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // Fetch when page changes
+  // Fetch when page changes (only when not in reorder mode)
   useEffect(() => {
-    fetchData();
+    if (!isReorderMode) {
+      fetchData();
+    }
   }, [currentPage]);
 
   // When filters change, reset to page 1 and fetch (avoid double fetch)
@@ -149,7 +292,14 @@ export function ModelsManagement() {
     } else {
       fetchData();
     }
+    // Disable reorder mode when filters change
+    setIsReorderMode(false);
   }, [debouncedSearch, filterBrand, filterDeviceType]);
+
+  // When reorder mode changes, refetch data
+  useEffect(() => {
+    fetchData();
+  }, [isReorderMode]);
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -166,8 +316,15 @@ export function ModelsManagement() {
       setIsLoading(true);
       // Build query params for models endpoint
       const params = new URLSearchParams();
-      params.append("page", String(currentPage));
-      params.append("limit", String(modelsPerPage));
+      
+      // In reorder mode, don't paginate - get all models
+      if (!isReorderMode) {
+        params.append("page", String(currentPage));
+        params.append("limit", String(modelsPerPage));
+      } else {
+        params.append("limit", "1000"); // Get all models when reordering
+      }
+      
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (filterBrand && filterBrand !== "all") params.append("brandId", filterBrand);
       if (filterDeviceType && filterDeviceType !== "all") params.append("deviceType", filterDeviceType);
@@ -182,9 +339,12 @@ export function ModelsManagement() {
         const data = await modelsRes.json();
         console.log("Fetched models:", data);
         setModels(data.data || data.models || []);
-        if (data.pagination) {
+        if (data.pagination && !isReorderMode) {
           setTotalPages(data.pagination.totalPages);
           setTotalModels(data.pagination.total);
+        } else if (isReorderMode) {
+          setTotalPages(1); // No pagination in reorder mode
+          setTotalModels((data.data || data.models || []).length);
         }
       } else {
         const errorData = await modelsRes.json();
@@ -207,6 +367,48 @@ export function ModelsManagement() {
       toast.error("Failed to load data");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = models.findIndex((model) => model._id === active.id);
+      const newIndex = models.findIndex((model) => model._id === over.id);
+
+      const newModels = arrayMove(models, oldIndex, newIndex);
+      setModels(newModels);
+
+      // Update positions in the backend - all models are loaded, so we can update positions directly
+      const positions = newModels.map((model, index) => ({
+        id: model._id,
+        position: index,
+      }));
+
+      try {
+        const updateResponse = await fetch("/api/admin/models", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ positions }),
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error("Failed to update positions");
+        }
+
+        toast.success("Model order updated successfully");
+        // Refetch data to ensure UI reflects the changes immediately
+        await fetchData();
+      } catch (error) {
+        console.error("Error updating model positions:", error);
+        toast.error("Failed to update model order");
+        // Revert the change
+        fetchData();
+      }
     }
   };
 
@@ -1272,102 +1474,179 @@ export function ModelsManagement() {
 
       {/* Models Table */}
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Image</TableHead>
-              <TableHead>Model Name</TableHead>
-              <TableHead>Brand</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Colors</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {models.length === 0 ? (
+        <div className="p-4 border-b">
+          <div className="flex justify-between items-center">
+            <div className="text-sm text-muted-foreground">
+              {isReorderMode 
+                ? `Reordering ${totalModels} models - Drag and drop to change order`
+                : `${totalModels} models total`
+              }
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={isReorderMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  if (!isReorderMode && (filterBrand === "all" || filterDeviceType === "all")) {
+                    toast.error("Please select both Brand and Device Type filters to enable reordering");
+                    return;
+                  }
+                  setIsReorderMode(!isReorderMode);
+                }}
+                disabled={isLoading}
+                className="gap-2"
+              >
+                <ArrowUpDown className="h-4 w-4" />
+                {isReorderMode ? "Exit Reorder" : "Reorder"}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {isReorderMode ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Image</TableHead>
+                  <TableHead>Model Name</TableHead>
+                  <TableHead>Brand</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Variants</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {models.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8">
+                      <p className="text-muted-foreground">
+                        No models yet. Add your first model!
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  <SortableContext
+                    items={models.map((model) => model._id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {models.map((model) => (
+                      <SortableRow
+                        key={model._id}
+                        model={model}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        isReorderMode={isReorderMode}
+                      />
+                    ))}
+                  </SortableContext>
+                )}
+              </TableBody>
+            </Table>
+          </DndContext>
+        ) : (
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
-                  <p className="text-muted-foreground">
-                    No models yet. Add your first model!
-                  </p>
-                </TableCell>
+                <TableHead>Image</TableHead>
+                <TableHead>Model Name</TableHead>
+                <TableHead>Brand</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Colors</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              models.map((model) => (
-                <TableRow key={model._id}>
-                  <TableCell>
-                    {model.image ? (
-                      <div className="w-12 h-12 relative">
-                        <Image
-                          src={model.image}
-                          alt={model.name}
-                          fill
-                          className="object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 bg-secondary rounded flex items-center justify-center text-xl">
-                        📱
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="font-medium">{model.name}</TableCell>
-                  <TableCell>{model.brandId?.name || 'N/A'}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {model.deviceType.charAt(0).toUpperCase() +
-                        model.deviceType.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      {model.colors.slice(0, 3).map((color) => (
-                        <div
-                          key={color.id}
-                          className="w-6 h-6 rounded-full border-2"
-                          style={{ backgroundColor: color.hex }}
-                          title={color.name}
-                        />
-                      ))}
-                      {model.colors.length > 3 && (
-                        <span className="text-xs text-muted-foreground">
-                          +{model.colors.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={model.active ? "default" : "secondary"}>
-                      {model.active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleEdit(model)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleDelete(model)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+            </TableHeader>
+            <TableBody>
+              {models.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8">
+                    <p className="text-muted-foreground">
+                      No models yet. Add your first model!
+                    </p>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                models.map((model) => (
+                  <TableRow key={model._id}>
+                    <TableCell>
+                      {model.image ? (
+                        <div className="w-12 h-12 relative">
+                          <Image
+                            src={model.image}
+                            alt={model.name}
+                            fill
+                            className="object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 bg-secondary rounded flex items-center justify-center text-xl">
+                          📱
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{model.name}</TableCell>
+                    <TableCell>{model.brandId?.name || 'N/A'}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {model.deviceType.charAt(0).toUpperCase() +
+                          model.deviceType.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {model.colors.slice(0, 3).map((color) => (
+                          <div
+                            key={color.id}
+                            className="w-6 h-6 rounded-full border-2"
+                            style={{ backgroundColor: color.hex }}
+                            title={color.name}
+                          />
+                        ))}
+                        {model.colors.length > 3 && (
+                          <span className="text-xs text-muted-foreground">
+                            +{model.colors.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={model.active ? "default" : "secondary"}>
+                        {model.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleEdit(model)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleDelete(model)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
         
-        {/* Pagination Controls */}
-        {totalPages > 1 && (
+        {/* Pagination Controls - only show when not in reorder mode */}
+        {totalPages > 1 && !isReorderMode && (
           <div className="flex items-center justify-between px-4 py-3 border-t">
             <div className="text-sm text-muted-foreground">
               Showing {models.length > 0 ? ((currentPage - 1) * modelsPerPage) + 1 : 0} to {Math.min(currentPage * modelsPerPage, totalModels)} of {totalModels} models

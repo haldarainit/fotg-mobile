@@ -235,6 +235,8 @@ export function RepairsManagement() {
         }
 
         toast.success("Repair order updated successfully");
+        // Refetch data to ensure UI reflects the changes immediately
+        await fetchRepairs();
       } catch (error) {
         console.error("Error updating repair positions:", error);
         toast.error("Failed to update repair order");
