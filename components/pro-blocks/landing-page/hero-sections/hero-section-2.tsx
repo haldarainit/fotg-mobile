@@ -17,15 +17,15 @@ const devices = [
 export function HeroSection2() {
   return (
     <section
-      className="bg-secondary pt-0 pb-10 md:pt-14 md:pb-14"
+      className="bg-secondary pt-2 pb-10 md:pt-8 md:pb-14"
       aria-labelledby="hero-heading"
     >
       <div className="container-padding-x container mx-auto grid gap-8 lg:grid-cols-2 lg:items-center">
         {/* Left Column */}
-        <div className="order-2 flex flex-col gap-5 lg:order-1 lg:gap-6">
+        <div className="order-2 flex flex-col gap-2 lg:order-1 lg:gap-2">
           {/* Section Title */}
           <div className="flex flex-col gap-2">
-            <Tagline>{siteData.company.name}</Tagline>
+            {/* <Tagline>{siteData.company.name}</Tagline> */}
 
             <h1
               id="hero-heading"
@@ -40,7 +40,7 @@ export function HeroSection2() {
           </div>
 
           {/* Feature List */}
-          <div className="flex flex-col gap-1.5 md:gap-2">
+          {/* <div className="flex flex-col gap-1.5 md:gap-2">
             {siteData.features.list.slice(0, 3).map((feature, index) => (
               <div key={index} className="flex items-start gap-2.5">
                 <div className="pt-0.5">
@@ -51,26 +51,26 @@ export function HeroSection2() {
                 </span>
               </div>
             ))}
-          </div>
+          </div> */}
 
           {/* Device Cards Row */}
-          <div className="mt-2 flex flex-wrap gap-3">
+          <div className="mt-2 flex flex-wrap gap-1 justify-center sm:justify-start">
             {devices.map(({ name, src }) => (
               <div
                 key={name}
-                className="flex w-[46%] min-w-[140px] flex-1 items-center gap-3 rounded-2xl bg-background px-3 py-2.5 shadow-sm ring-1 ring-border sm:w-auto sm:px-4 sm:py-3"
+                className="flex flex-col w-[46%] min-w-[140px] items-center gap-1 rounded-2xl px-3 py-1 sm:w-auto sm:px-4 sm:py-3"
               >
-                <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl bg-muted">
+                <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-lg">
                   <Image
                     src={src}
                     alt={name}
-                    width={36}
-                    height={36}
+                    width={150}
+                    height={150}
                     className="object-contain"
-                    sizes="36px"
+                    sizes="200px"
                   />
                 </div>
-                <span className="text-xs font-medium text-card-foreground md:text-sm">
+                <span className="text-sm font-semibold text-card-foreground md:text-base">
                   {name}
                 </span>
               </div>
