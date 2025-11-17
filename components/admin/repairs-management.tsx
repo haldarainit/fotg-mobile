@@ -25,7 +25,26 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Loader2, X, RefreshCw } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, X, RefreshCw, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface RepairItem {
   _id: string;
@@ -45,6 +64,89 @@ interface RepairItem {
     priceMultiplier: number;
   }>;
   active: boolean;
+  position?: number;
+}
+
+interface SortableRowProps {
+  repair: RepairItem;
+  onEdit: (repair: RepairItem) => void;
+  onDelete: (repair: RepairItem) => void;
+}
+
+function SortableRow({ repair, onEdit, onDelete }: SortableRowProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: repair._id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <button
+            className="cursor-grab hover:text-primary transition-colors"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+          <span className="font-medium">{repair.name}</span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex flex-wrap gap-1">
+          {repair.deviceTypes.map((type) => (
+            <Badge key={type} variant="outline">
+              {type}
+            </Badge>
+          ))}
+        </div>
+      </TableCell>
+      <TableCell>{repair.duration}</TableCell>
+      <TableCell>
+        {repair.hasQualityOptions ? (
+          <Badge variant="secondary">
+            {repair.qualityOptions.length} options
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground text-sm">N/A</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <Badge variant={repair.active ? "default" : "secondary"}>
+          {repair.active ? "Active" : "Inactive"}
+        </Badge>
+      </TableCell>
+      <TableCell className="text-right">
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => onEdit(repair)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="destructive"
+            size="icon"
+            onClick={() => onDelete(repair)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 export function RepairsManagement() {
@@ -53,6 +155,13 @@ export function RepairsManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingRepair, setEditingRepair] = useState<RepairItem | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const [formData, setFormData] = useState({
     name: "",
@@ -92,6 +201,46 @@ export function RepairsManagement() {
       toast.error("Failed to load repairs");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      const oldIndex = repairs.findIndex((repair) => repair._id === active.id);
+      const newIndex = repairs.findIndex((repair) => repair._id === over.id);
+
+      const newRepairs = arrayMove(repairs, oldIndex, newIndex);
+      setRepairs(newRepairs);
+
+      // Update positions in the backend
+      const positions = newRepairs.map((repair, index) => ({
+        id: repair._id,
+        position: index,
+      }));
+
+      try {
+        const response = await fetch("/api/admin/repairs", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({ positions }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to update positions");
+        }
+
+        toast.success("Repair order updated successfully");
+      } catch (error) {
+        console.error("Error updating repair positions:", error);
+        toast.error("Failed to update repair order");
+        // Revert the change
+        fetchRepairs();
+      }
     }
   };
 
@@ -507,77 +656,49 @@ export function RepairsManagement() {
 
       {/* Repairs Table */}
       <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Service Name</TableHead>
-              <TableHead>Device Types</TableHead>
-              <TableHead>Duration</TableHead>
-              <TableHead>Quality Options</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {repairs.length === 0 ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8">
-                  <p className="text-muted-foreground">
-                    No repair services yet. Add your first service!
-                  </p>
-                </TableCell>
+                <TableHead>Service Name</TableHead>
+                <TableHead>Device Types</TableHead>
+                <TableHead>Duration</TableHead>
+                <TableHead>Quality Options</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              repairs.map((repair) => (
-                <TableRow key={repair._id}>
-                  <TableCell className="font-medium">{repair.name}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {repair.deviceTypes.map((type) => (
-                        <Badge key={type} variant="outline">
-                          {type}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>{repair.duration}</TableCell>
-                  <TableCell>
-                    {repair.hasQualityOptions ? (
-                      <Badge variant="secondary">
-                        {repair.qualityOptions.length} options
-                      </Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={repair.active ? "default" : "secondary"}>
-                      {repair.active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleEdit(repair)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleDelete(repair)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+            </TableHeader>
+            <TableBody>
+              {repairs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <p className="text-muted-foreground">
+                      No repair services yet. Add your first service!
+                    </p>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                <SortableContext
+                  items={repairs.map((repair) => repair._id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {repairs.map((repair) => (
+                    <SortableRow
+                      key={repair._id}
+                      repair={repair}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </SortableContext>
+              )}
+            </TableBody>
+          </Table>
+        </DndContext>
       </Card>
     </div>
   );

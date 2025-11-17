@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       query.deviceTypes = deviceType;
     }
 
-    const repairs = await RepairItem.find(query).sort({ name: 1 }).lean();
+    const repairs = await RepairItem.find(query).sort({ position: 1, name: 1 }).lean();
 
     console.log(`Fetched ${repairs.length} repair items`);
 
@@ -98,6 +98,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get the current count to set position
+    const currentCount = await RepairItem.countDocuments();
+
     const repair = await RepairItem.create({
       name: name.trim(),
       icon: icon || "",
@@ -106,6 +109,7 @@ export async function POST(request: NextRequest) {
       description: description || "",
       hasQualityOptions: hasQualityOptions || false,
       qualityOptions: qualityOptions || [],
+      position: currentCount,
     });
 
     return NextResponse.json({
@@ -185,7 +189,43 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE - Delete a repair item
+// PUT - Update repair positions (for drag & drop reordering)
+export async function PUT(request: NextRequest) {
+  const authError = checkAuth(request);
+  if (authError) return authError;
+
+  try {
+    await connectDB();
+
+    const body = await request.json();
+    const { positions } = body; // Array of { id, position }
+
+    if (!positions || !Array.isArray(positions)) {
+      return NextResponse.json(
+        { success: false, error: "Positions array is required" },
+        { status: 400 }
+      );
+    }
+
+    // Update positions in bulk
+    const updatePromises = positions.map(({ id, position }: { id: string; position: number }) =>
+      RepairItem.findByIdAndUpdate(id, { position })
+    );
+
+    await Promise.all(updatePromises);
+
+    return NextResponse.json({
+      success: true,
+      message: "Repair positions updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating repair positions:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to update repair positions" },
+      { status: 500 }
+    );
+  }
+}
 export async function DELETE(request: NextRequest) {
   const authError = checkAuth(request);
   if (authError) return authError;

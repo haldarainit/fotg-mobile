@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
         model: RepairItem, 
         select: "name basePrice hasQualityOptions qualityOptions" 
       })
-      .sort({ createdAt: 1 })
+      .sort({ position: 1, createdAt: 1 })
       .skip(skip)
       .limit(limit)
       .lean()
@@ -179,6 +179,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get the current count for this brand to set position
+    const currentCount = await DeviceModel.countDocuments({ brandId });
+
     const model = await DeviceModel.create({
       name: name.trim(),
       brandId,
@@ -189,6 +192,7 @@ export async function POST(request: NextRequest) {
       colors: colors || [],
       repairs: body.repairs || [],
       active: active !== undefined ? active : true,
+      position: currentCount,
     });
 
     const populatedModel = await DeviceModel.findById(model._id)
@@ -255,6 +259,44 @@ export async function PATCH(request: NextRequest) {
     console.error("Error updating model:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update model" },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT - Update model positions (for drag & drop reordering)
+export async function PUT(request: NextRequest) {
+  const authError = checkAuth(request);
+  if (authError) return authError;
+
+  try {
+    await connectDB();
+
+    const body = await request.json();
+    const { positions } = body; // Array of { id, position }
+
+    if (!positions || !Array.isArray(positions)) {
+      return NextResponse.json(
+        { success: false, error: "Positions array is required" },
+        { status: 400 }
+      );
+    }
+
+    // Update positions in bulk
+    const updatePromises = positions.map(({ id, position }: { id: string; position: number }) =>
+      DeviceModel.findByIdAndUpdate(id, { position })
+    );
+
+    await Promise.all(updatePromises);
+
+    return NextResponse.json({
+      success: true,
+      message: "Model positions updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating model positions:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to update model positions" },
       { status: 500 }
     );
   }
