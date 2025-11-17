@@ -1749,10 +1749,12 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             ) : null;
                           })()}
                           <p className="text-sm text-muted-foreground mb-3">
-                            {(() => {
-                              console.log(`Repair ${repair.id} description:`, repair?.description);
-                              return repair?.description || "Professional repair service for your device";
-                            })()}
+                            <span className="bg-gray-100 text-red-600 px-2 py-1 rounded inline-block">
+                              {(() => {
+                                console.log(`Repair ${repair.id} description:`, repair?.description);
+                                return repair?.description || "Professional repair service for your device";
+                              })()}
+                            </span>
                           </p>
                           <div className="flex items-baseline gap-2">
                             <p className="text-2xl font-bold text-primary">
@@ -1765,8 +1767,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 );
                               })()}
                             </p>
-                            {hasQualityOptions && displayPrice > 0 && (
-                              <span className="text-xs text-muted-foreground">
+                            { displayPrice > 0 && (
+                              <span className="text-sm text-muted-foreground">
                                 starting at
                               </span>
                             )}
