@@ -23,12 +23,12 @@ const iconMap: Record<string, any> = {
 };
 
 const IMAGES = [
-  "https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1618761714954-0b8cd0026356?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1555685812-4b943f1f9a5d?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=2070&auto=format&fit=crop",
-  "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?q=80&w=2070&auto=format&fit=crop",
+  "/fe1.jpg",
+  "/fe2.jpg",
+  "/fe3.jpg",
+  "/fe4.jpg",
+  "/fe5.jpg",
+  "/fe6.jpg",
 ];
 
 export function FeatureSection9() {
