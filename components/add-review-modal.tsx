@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -31,8 +31,6 @@ import {
 } from "@/components/ui/select";
 import { Star, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
-import 'react-image-crop/dist/ReactCrop.css';
 
 const reviewSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -41,7 +39,6 @@ const reviewSchema = z.object({
   device: z.string().min(1, "Please select your device"),
   service: z.string().min(1, "Please select the service type"),
   review: z.string().min(10, "Review must be at least 10 characters"),
-  image: z.instanceof(File).optional(),
 });
 
 type ReviewFormData = z.infer<typeof reviewSchema>;
@@ -119,37 +116,6 @@ export function AddReviewModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRating, setSelectedRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
-  const [imageSrc, setImageSrc] = useState<string>('');
-  const [crop, setCrop] = useState<Crop>();
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
-  
-  const [previewImage, setPreviewImage] = useState<string>('');
-  const [showPreview, setShowPreview] = useState(false);
-  const imgRef = useRef<HTMLImageElement | null>(null);
-
-  // Recenter the crop when the image changes so the user keeps focus.
-  useEffect(() => {
-    if (!imgRef.current) return;
-
-    if (imageSrc) {
-      const width = imgRef.current.width;
-      const height = imgRef.current.height;
-      const newCrop = centerCrop(
-        makeAspectCrop(
-          {
-            unit: "%",
-            width: 80,
-          },
-          1,
-          width,
-          height
-        ),
-        width,
-        height
-      );
-      setCrop(newCrop);
-    }
-  }, [imageSrc]);
 
   const form = useForm<ReviewFormData>({
     resolver: zodResolver(reviewSchema),
@@ -160,88 +126,14 @@ export function AddReviewModal({
       device: "",
       service: "",
       review: "",
-      image: undefined,
     },
   });
 
-  const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const reader = new FileReader();
-      reader.addEventListener('load', () => {
-        setImageSrc(reader.result?.toString() || '');
-      });
-      reader.readAsDataURL(e.target.files[0]);
-    }
-  };
-
-  const onImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const { width, height } = e.currentTarget;
-    const crop = centerCrop(
-      makeAspectCrop(
-        {
-          unit: '%',
-          width: 80,
-        },
-        1, // square for circle
-        width,
-        height
-      ),
-      width,
-      height
-    );
-    setCrop(crop);
-  };
-
-  const getCroppedImg = (image: HTMLImageElement, crop: PixelCrop): Promise<Blob | null> => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) {
-      return Promise.reject(new Error('No 2d context'));
-    }
-
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-
-    canvas.width = crop.width;
-    canvas.height = crop.height;
-
-    ctx.drawImage(
-      image,
-      crop.x * scaleX,
-      crop.y * scaleY,
-      crop.width * scaleX,
-      crop.height * scaleY,
-      0,
-      0,
-      crop.width,
-      crop.height
-    );
-
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
-        resolve(blob);
-      }, 'image/jpeg', 0.95);
-    });
-  };
-
   const onSubmit = async (data: ReviewFormData) => {
-    // If image is selected and cropped, show preview first
-    if (data.image && completedCrop && imgRef.current) {
-      const croppedBlob = await getCroppedImg(imgRef.current, completedCrop);
-      if (croppedBlob) {
-        const previewUrl = URL.createObjectURL(croppedBlob);
-        setPreviewImage(previewUrl);
-        setShowPreview(true);
-        return; // Don't submit yet
-      }
-    }
-
-    // If no image or no crop, proceed directly
-    await submitReview(data, data.image);
+    await submitReview(data);
   };
 
-  const submitReview = async (data: ReviewFormData, imageFile?: File) => {
+  const submitReview = async (data: ReviewFormData) => {
     setIsSubmitting(true);
     try {
       const formData = new FormData();
@@ -251,9 +143,6 @@ export function AddReviewModal({
       formData.append("device", data.device);
       formData.append("service", data.service);
       formData.append("review", data.review);
-      if (imageFile) {
-        formData.append("image", imageFile);
-      }
 
       const response = await fetch("/api/reviews", {
         method: "POST",
@@ -264,14 +153,8 @@ export function AddReviewModal({
 
       if (result.success) {
         toast.success("Review submitted successfully!");
-        if (previewImage) URL.revokeObjectURL(previewImage);
         form.reset();
         setSelectedRating(0);
-        setImageSrc('');
-        setCrop(undefined);
-        setCompletedCrop(undefined);
-        setPreviewImage('');
-        setShowPreview(false);
         onOpenChange(false);
         onReviewAdded();
       } else {
@@ -282,17 +165,6 @@ export function AddReviewModal({
       toast.error("Failed to submit review. Please try again.");
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleConfirmUpload = async () => {
-    const data = form.getValues();
-    if (previewImage) {
-      // Convert preview blob back to file
-      const response = await fetch(previewImage);
-      const blob = await response.blob();
-      const file = new File([blob], 'cropped-image.jpg', { type: 'image/jpeg' });
-      await submitReview(data, file);
     }
   };
 
@@ -453,54 +325,6 @@ export function AddReviewModal({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="image"
-              render={({ field: { value, onChange, ...field } }) => (
-                <FormItem>
-                  <FormLabel>Upload Your Image (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        onChange(file);
-                        onSelectFile(e);
-                      }}
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {imageSrc && (
-              <div className="space-y-2">
-                <FormLabel>Crop Image</FormLabel>
-                <div className="space-y-2">
-                  <ReactCrop
-                    crop={crop}
-                    onChange={setCrop}
-                    onComplete={setCompletedCrop}
-                    circularCrop
-                    aspect={1}
-                    minWidth={50}
-                    maxWidth={300}
-                  >
-                    <img
-                      ref={imgRef}
-                      src={imageSrc}
-                      onLoad={onImageLoad}
-                      alt="Crop preview"
-                      style={{ maxHeight: '300px' }}
-                    />
-                  </ReactCrop>
-                </div>
-              </div>
-            )}
-
             <div className="flex gap-3 pt-4">
               <Button
                 type="button"
@@ -519,50 +343,6 @@ export function AddReviewModal({
             </div>
           </form>
         </Form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Image Preview Dialog */}
-      <Dialog open={showPreview} onOpenChange={setShowPreview}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Preview Cropped Image</DialogTitle>
-            <DialogDescription>
-              Review your cropped image before submitting the review.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-center py-4">
-            {previewImage && (
-              <img
-                src={previewImage}
-                alt="Cropped preview"
-                className="w-64 h-64 rounded-full object-cover"
-              />
-            )}
-          </div>
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (previewImage) URL.revokeObjectURL(previewImage);
-                setPreviewImage('');
-                setShowPreview(false);
-              }}
-              className="flex-1"
-            >
-              Edit Crop
-            </Button>
-            <Button
-              onClick={handleConfirmUpload}
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              {isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Confirm & Upload
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
     </>

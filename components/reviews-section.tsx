@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Star, CheckCircle, Phone, Plus, Loader2 } from "lucide-react";
+import { Star, CheckCircle, Phone, Plus, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { siteData } from "@/lib/siteData";
 import { Tagline } from "@/components/pro-blocks/landing-page/tagline";
 import { Badge } from "@/components/ui/badge";
@@ -25,20 +24,15 @@ interface Review {
   approved: boolean;
 }
 
-const overallStats = {
-  totalReviews: 1247,
-  averageRating: 4.9,
-  fiveStars: 92,
-  fourStars: 6,
-  threeStars: 1,
-  twoStars: 0.5,
-  oneStar: 0.5,
-};
-
 export function ReviewsSection() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isHovered, setIsHovered] = useState(false);
+  const [cardWidth, setCardWidth] = useState(300);
+  const [cardsPerView, setCardsPerView] = useState(1);
+  const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchReviews = async () => {
     try {
@@ -60,6 +54,32 @@ export function ReviewsSection() {
 
   useEffect(() => {
     fetchReviews();
+  }, []);
+
+  // Update card width and cards per view based on screen size
+  useEffect(() => {
+    const updateLayout = () => {
+      if (window.innerWidth < 640) {
+        setCardWidth(300);
+        setCardsPerView(1);
+      } else if (window.innerWidth < 768) {
+        setCardWidth(340);
+        setCardsPerView(1);
+      } else if (window.innerWidth < 1024) {
+        setCardWidth(320);
+        setCardsPerView(2);
+      } else if (window.innerWidth < 1280) {
+        setCardWidth(300);
+        setCardsPerView(3);
+      } else {
+        setCardWidth(320);
+        setCardsPerView(4);
+      }
+    };
+
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+    return () => window.removeEventListener("resize", updateLayout);
   }, []);
 
   const handleReviewAdded = () => {
@@ -114,6 +134,39 @@ export function ReviewsSection() {
         : 0,
   };
 
+  // Auto-play functionality
+  useEffect(() => {
+    if (reviews.length === 0 || isHovered) return;
+
+    autoPlayRef.current = setInterval(() => {
+      handleNext();
+    }, 3000);
+
+    return () => {
+      if (autoPlayRef.current) {
+        clearInterval(autoPlayRef.current);
+      }
+    };
+  }, [reviews.length, isHovered, currentIndex]);
+
+  const handlePrevious = () => {
+    setCurrentIndex((prev) => {
+      if (prev === 0) {
+        return reviews.length - 1;
+      }
+      return prev - 1;
+    });
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => {
+      if (prev >= reviews.length - 1) {
+        return 0;
+      }
+      return prev + 1;
+    });
+  };
+
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
@@ -124,6 +177,14 @@ export function ReviewsSection() {
       />
     ));
   };
+
+  // Create seamless infinite scroll array
+  const displayReviews = reviews.length > 0 
+    ? [reviews[reviews.length - 1], ...reviews, reviews[0]]
+    : [];
+
+  const cardGap = 16;
+  const totalCardWidth = cardWidth + cardGap;
 
   return (
     <>
@@ -232,9 +293,9 @@ export function ReviewsSection() {
         </div>
       </section>
 
-      {/* Customer Reviews */}
+      {/* Customer Reviews Carousel */}
       <section className="bg-secondary section-padding-y border-b">
-        <div className="container-padding-x container mx-auto flex flex-col gap-10 md:gap-12">
+        <div className="container mx-auto flex flex-col gap-10 md:gap-12 px-4 sm:px-6 lg:px-8">
           <div className="section-title-gap-lg mx-auto flex max-w-xl flex-col items-center text-center">
             <h2 className="heading-lg text-foreground">Customer Reviews</h2>
             <p className="text-muted-foreground text-base">
@@ -262,69 +323,147 @@ export function ReviewsSection() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {reviews.map((review) => (
-                <Card
-                  key={review.id}
-                  className="bg-background rounded-xl border p-6 shadow-sm"
+            <div className="relative w-full">
+              {/* Mobile Navigation - Top Right */}
+              <div className="absolute -top-16 right-0 flex gap-2 z-20 md:hidden">
+                <button
+                  onClick={handlePrevious}
+                  className="w-10 h-10 rounded-full bg-background border shadow-sm flex items-center justify-center hover:bg-accent transition-colors"
+                  aria-label="Previous"
                 >
-                  <CardContent className="p-0 space-y-4">
-                    {/* Review Text */}
-                    <blockquote className="text-muted-foreground text-sm leading-relaxed">
-                      &quot;{review.review}&quot;
-                    </blockquote>
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={handleNext}
+                  className="w-10 h-10 rounded-full bg-background border shadow-sm flex items-center justify-center hover:bg-accent transition-colors"
+                  aria-label="Next"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
 
-                    {/* Review Image */}
-                    {/* {review.image && (
-                      <div className="mt-4">
+              {/* Desktop Navigation - Outside Left */}
+              <button
+                onClick={handlePrevious}
+                className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 lg:-translate-x-16 w-12 h-12 rounded-full bg-background border shadow-lg items-center justify-center hover:bg-accent transition-all z-20"
+                aria-label="Previous"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+
+              {/* Desktop Navigation - Outside Right */}
+              <button
+                onClick={handleNext}
+                className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 lg:translate-x-16 w-12 h-12 rounded-full bg-background border shadow-lg items-center justify-center hover:bg-accent transition-all z-20"
+                aria-label="Next"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+
+              {/* Carousel Container */}
+              <div
+                className="overflow-hidden"
+                style={{
+                  maxWidth: cardsPerView === 1 ? `${cardWidth}px` : '100%',
+                  margin: cardsPerView === 1 ? '0 auto' : '0',
+                }}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+              >
+                <div
+                  className="flex transition-transform duration-500 ease-in-out"
+                  style={{
+                    transform: `translateX(-${(currentIndex + 1) * totalCardWidth}px)`,
+                  }}
+                >
+                  {displayReviews.map((review, index) => (
+                    <div
+                      key={`${review.id}-${index}`}
+                      className="relative rounded-3xl overflow-hidden flex-shrink-0"
+                      style={{
+                        width: `${cardWidth}px`,
+                        minWidth: `${cardWidth}px`,
+                        height: "500px",
+                        marginRight: `${cardGap}px`,
+                      }}
+                    >
+                      {/* Background Image */}
+                      {review.image ? (
                         <img
                           src={review.image}
-                          alt="Review image"
-                          className="w-full h-32 object-cover rounded-lg"
+                          alt={`${review.name}'s device`}
+                          className="w-full h-full object-cover"
                         />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5" />
+                      )}
+
+                      {/* Overlay Gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+
+                      {/* Content Card - Positioned at bottom */}
+                      <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+                        <Card className="bg-white/95 backdrop-blur-sm rounded-2xl border-0 shadow-xl">
+                          <CardContent className="p-4 sm:p-5 space-y-3">
+                            {/* Name & Device */}
+                            <div>
+                              <h3 className="font-semibold text-foreground text-sm sm:text-base mb-1 line-clamp-1">
+                                {review.name}
+                              </h3>
+                              <p className="text-xs sm:text-sm text-primary font-medium line-clamp-1">
+                                {review.device}
+                              </p>
+                            </div>
+
+                            {/* Service Badge */}
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="secondary"
+                                className="text-xs font-normal"
+                              >
+                                {review.service}
+                              </Badge>
+                            </div>
+
+                            {/* Review Text */}
+                            <p className="text-xs sm:text-sm text-foreground leading-relaxed line-clamp-3">
+                              {review.review}
+                            </p>
+
+                            {/* Rating Stars & Date */}
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <div className="flex gap-1">
+                                {renderStars(review.rating)}
+                              </div>
+                              {review.date && (
+                                <span className="text-xs text-muted-foreground">
+                                  {review.date}
+                                </span>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
                       </div>
-                    )} */}
-
-                    {/* Service Info */}
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {review.device}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">
-                        {review.service}
-                      </Badge>
                     </div>
+                  ))}
+                </div>
+              </div>
 
-                    {/* Author */}
-                    <div className="flex items-center gap-3 pt-2 border-t">
-                        <Avatar className="h-8 w-8">
-                          {review.image ? (
-                            <AvatarImage src={review.image} alt={review.name} />
-                          ) : (
-                            <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                              {review.name.charAt(0)}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-foreground font-medium text-sm">
-                              {review.name}
-                            </span>
-                            {!review.image && (
-                              <span className="text-muted-foreground text-xs">
-                                Update your image
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-muted-foreground text-xs">
-                            {review.date}
-                          </p>
-                        </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {/* Dots Indicator */}
+              <div className="flex justify-center gap-2 mt-6">
+                {reviews.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentIndex(index)}
+                    className={`h-2 rounded-full transition-all ${
+                      currentIndex === index
+                        ? "bg-primary w-6"
+                        : "bg-muted-foreground/30 w-2"
+                    }`}
+                    aria-label={`Go to slide ${index + 1}`}
+                  />
+                ))}
+              </div>
             </div>
           )}
         </div>

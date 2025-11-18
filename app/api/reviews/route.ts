@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       service,
       review,
       image: imageUrl,
-      approved: true, // Auto-approve for demo (in production, you might want moderation)
+      approved: false, // Default to unapproved for admin moderation
     });
 
     const savedReview = await newReview.save();
