@@ -55,26 +55,39 @@ export function HeroSection2() {
 
           {/* Device Cards Row */}
           <div className="mt-2 flex flex-wrap gap-1 justify-center sm:justify-start">
-            {devices.map(({ name, src }) => (
-              <div
-                key={name}
-                className="flex flex-col w-[46%] min-w-[140px] items-center gap-1 rounded-2xl px-3 py-1 sm:w-auto sm:px-4 sm:py-3"
-              >
-                <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-lg">
-                  <Image
-                    src={src}
-                    alt={name}
-                    width={150}
-                    height={150}
-                    className="object-contain"
-                    sizes="200px"
-                  />
-                </div>
-                <span className="text-sm font-semibold text-card-foreground md:text-base">
-                  {name}
-                </span>
-              </div>
-            ))}
+            {devices.map(({ name, src }) => {
+              // map display name to device query values
+              const mapName = (n: string) => {
+                const key = n.toLowerCase();
+                if (key.includes('phone')) return 'smartphone';
+                if (key.includes('computer') || key.includes('laptop')) return 'laptop';
+                if (key.includes('tablet')) return 'tablet';
+                return 'smartphone';
+              };
+              const deviceQuery = mapName(name);
+
+              return (
+                <Link
+                  key={name}
+                  href={`/get-a-quote?device=${deviceQuery}`}
+                  className="flex flex-col w-[46%] min-w-[140px] items-center gap-1 rounded-2xl px-3 py-1 sm:w-auto sm:px-4 sm:py-3"
+                >
+                  <div className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-lg">
+                    <Image
+                      src={src}
+                      alt={name}
+                      width={150}
+                      height={150}
+                      className="object-contain"
+                      sizes="200px"
+                    />
+                  </div>
+                  <span className="text-sm font-semibold text-card-foreground md:text-base">
+                    {name}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
 
           {/* CTA Buttons */}

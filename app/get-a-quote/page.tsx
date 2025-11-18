@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,6 +90,7 @@ export default function GetAQuotePage() {
     "device-type" | "brand" | "model" | "color" | "repair" | "finalize"
   >("device-type");
   const [searchQuery, setSearchQuery] = useState("");
+  const [modelSearch, setModelSearch] = useState("");
   const [selectedDeviceType, setSelectedDeviceType] = useState("");
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedModel, setSelectedModel] = useState<DeviceModel | null>(null);
@@ -399,6 +401,19 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
     };
 
     fetchData();
+  }, []);
+
+  // Read device query param (e.g. ?device=smartphone) and auto-select
+  // the device type + advance to the brand selection step.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const deviceParam = searchParams?.get?.("device");
+    if (deviceParam) {
+      setSelectedDeviceType(deviceParam);
+      setStep("brand");
+    }
+    // only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch available time slots when date is selected
@@ -1109,25 +1124,44 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                     }
                                     className="flex items-center gap-3 p-3 border-2 rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-left"
                                   >
-                                    <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center shrink-0">
-                                      {model.deviceType === "smartphone" && (
-                                        <Smartphone className="h-6 w-6 text-primary" />
-                                      )}
-                                      {model.deviceType === "tablet" && (
-                                        <Tablet className="h-6 w-6 text-primary" />
-                                      )}
-                                      {model.deviceType === "laptop" && (
-                                        <Laptop className="h-6 w-6 text-primary" />
+                                    <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                                      {model.image ? (
+                                        <Image
+                                          src={model.image}
+                                          alt={model.name}
+                                          width={48}
+                                          height={48}
+                                          className="object-contain w-full h-full"
+                                        />
+                                      ) : (
+                                        (() => {
+                                          const t = String(model.deviceType || "").toLowerCase();
+                                          if (t.includes("phone") || t.includes("mobile") || t.includes("smart")) {
+                                            return <Smartphone className="h-6 w-6 text-primary" />;
+                                          }
+                                          if (t.includes("tablet")) {
+                                            return <Tablet className="h-6 w-6 text-primary" />;
+                                          }
+                                          if (t.includes("lap") || t.includes("mac") || t.includes("pc") || t.includes("computer")) {
+                                            return <Laptop className="h-6 w-6 text-primary" />;
+                                          }
+                                          // fallback
+                                          return <Smartphone className="h-6 w-6 text-primary" />;
+                                        })()
                                       )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <p className="font-semibold text-sm truncate">
                                         {model.name}
+                                        {brand?.name && (
+                                          <span className="text-xs text-muted-foreground ml-2">— {brand.name}</span>
+                                        )}
                                       </p>
-                                      <p className="text-xs text-muted-foreground">
-                                        {brand?.name}
-                                      </p>
-                                      {renderVariants(model.variants, model.id)}
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        {model.variants && model.variants.length > 0
+                                          ? model.variants.slice(0,2).join(", ")
+                                          : null}
+                                      </div>
                                     </div>
                                   </button>
                                 );
@@ -1434,27 +1468,27 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                 </h1>
               </div>
 
-              <div className="relative">
-                <Input
-                  type="text"
-                  placeholder="Search brands..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pr-10 h-12 text-lg"
-                />
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              </div>
-
-              {/* Find My Model Button */}
-              <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowFindModelDialog(true)}
-                  className="gap-2"
-                >
-                  <Info className="h-4 w-4" />
-                  How to find my model?
-                </Button>
+              <div className="flex items-center gap-4">
+                <div className="flex-1 relative">
+                  <Input
+                    type="text"
+                    placeholder="Search brands..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pr-10 h-12 text-lg"
+                  />
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowFindModelDialog(true)}
+                    className="gap-2 whitespace-nowrap"
+                  >
+                    <Info className="h-4 w-4" />
+                    How to find my model?
+                  </Button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -1507,64 +1541,88 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                 </h1>
               </div>
 
-              {/* Find My Model Button */}
-              <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowFindModelDialog(true)}
-                  className="gap-2"
-                >
-                  <Info className="h-4 w-4" />
-                  How to find my model?
-                </Button>
+              <div className="flex items-center gap-4">
+                <div className="flex-1 max-w-md relative">
+                  <label className="sr-only">Search models</label>
+                  <Input
+                    value={modelSearch}
+                    onChange={(e) => setModelSearch(e.target.value)}
+                    placeholder="Search models..."
+                    className="pr-10 h-12"
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-2">
+                    {modelSearch ? (
+                      <Button size="sm" variant="ghost" onClick={() => setModelSearch("")}> 
+                        <X className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Search className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowFindModelDialog(true)}
+                    className="gap-2 whitespace-nowrap"
+                  >
+                    <Info className="h-4 w-4" />
+                    How to find my model?
+                  </Button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                {getFilteredModels().map((model) => (
-                  <button
-                    key={model.id}
-                    onClick={() => handleModelSelect(model)}
-                    className="group"
-                  >
-                    <div className="border-2 rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-all flex flex-col h-80">
-                      <div className="aspect-square bg-gray-50 rounded-lg mb-3 flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {model.image ? (
-                          <Image
-                            src={model.image}
-                            alt={model.name}
-                            width={150}
-                            height={150}
-                            className="object-contain w-full h-full p-2"
-                          />
-                        ) : (
-                          <div className="text-6xl">
-                            {model.deviceType === "smartphone"
-                              ? "📱"
-                              : model.deviceType === "tablet"
-                              ? "📱"
-                              : "💻"}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 flex flex-col justify-start min-h-0">
-                        <p className="font-semibold text-sm text-center mb-2 h-10 flex items-center justify-center overflow-hidden"
-                           style={{
-                             display: '-webkit-box',
-                             WebkitLineClamp: 2,
-                             WebkitBoxOrient: 'vertical' as const,
-                             lineHeight: '1.25rem'
-                           }}>
-                          {model.name}
-                        </p>
-                        <div className="flex-1 flex items-start justify-center">
-                          <div className="text-center">
-                            {renderVariants(model.variants, model.id)}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 mt-4">
+                {getFilteredModels()
+                  .filter((model) =>
+                    model.name.toLowerCase().includes(modelSearch.toLowerCase()) ||
+                    model.brandName?.toLowerCase().includes(modelSearch.toLowerCase())
+                  )
+                  .map((model) => (
+                    <button
+                      key={model.id}
+                      onClick={() => handleModelSelect(model)}
+                      className="group"
+                    >
+                      <div className="border-2 rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-all flex flex-col h-80">
+                        <div className="aspect-square bg-gray-50 rounded-lg mb-3 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {model.image ? (
+                            <Image
+                              src={model.image}
+                              alt={model.name}
+                              width={150}
+                              height={150}
+                              className="object-contain w-full h-full p-2"
+                            />
+                          ) : (
+                            <div className="text-6xl">
+                              {model.deviceType === "smartphone"
+                                ? "📱"
+                                : model.deviceType === "tablet"
+                                ? "📱"
+                                : "💻"}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 flex flex-col justify-start min-h-0">
+                          <p className="font-semibold text-sm text-center mb-2 h-10 flex items-center justify-center overflow-hidden"
+                             style={{
+                               display: '-webkit-box',
+                               WebkitLineClamp: 2,
+                               WebkitBoxOrient: 'vertical' as const,
+                               lineHeight: '1.25rem'
+                             }}>
+                            {model.name}
+                          </p>
+                          <div className="flex-1 flex items-start justify-center">
+                            <div className="text-center">
+                              {renderVariants(model.variants, model.id)}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  ))}
               </div>
             </div>
           )}
