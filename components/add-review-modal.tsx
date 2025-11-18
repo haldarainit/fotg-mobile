@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -36,7 +36,7 @@ const reviewSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email address"),
   rating: z.number().min(1).max(5),
-  device: z.string().min(1, "Please select your device"),
+  device: z.string().min(1, "Please enter your device model"),
   service: z.string().min(1, "Please select the service type"),
   review: z.string().min(10, "Review must be at least 10 characters"),
 });
@@ -49,64 +49,11 @@ interface AddReviewModalProps {
   onReviewAdded: () => void;
 }
 
-const deviceOptions = [
-  "iPhone 15 Pro Max",
-  "iPhone 15 Pro",
-  "iPhone 15 Plus",
-  "iPhone 15",
-  "iPhone 14 Pro Max",
-  "iPhone 14 Pro",
-  "iPhone 14 Plus",
-  "iPhone 14",
-  "iPhone 13 Pro Max",
-  "iPhone 13 Pro",
-  "iPhone 13",
-  "iPhone 13 Mini",
-  "iPhone 12 Pro Max",
-  "iPhone 12 Pro",
-  "iPhone 12",
-  "iPhone 12 Mini",
-  "iPhone 11 Pro Max",
-  "iPhone 11 Pro",
-  "iPhone 11",
-  "Samsung Galaxy S24 Ultra",
-  "Samsung Galaxy S24+",
-  "Samsung Galaxy S24",
-  "Samsung Galaxy S23 Ultra",
-  "Samsung Galaxy S23+",
-  "Samsung Galaxy S23",
-  "Samsung Galaxy S22 Ultra",
-  "Samsung Galaxy S22+",
-  "Samsung Galaxy S22",
-  "Samsung Galaxy Note 20 Ultra",
-  "Samsung Galaxy A54",
-  "Samsung Galaxy A34",
-  "Google Pixel 8 Pro",
-  "Google Pixel 8",
-  "Google Pixel 7 Pro",
-  "Google Pixel 7",
-  "Google Pixel 6 Pro",
-  "Google Pixel 6",
-  "OnePlus 12",
-  "OnePlus 11",
-  "Other",
-];
-
-const serviceOptions = [
-  "Screen Replacement",
-  "Battery Replacement",
-  "Water Damage Repair",
-  "Camera Repair",
-  "Charging Port Repair",
-  "Speaker Repair",
-  "Back Glass Replacement",
-  "Button Repair",
-  "Face ID/Touch ID Repair",
-  "Software Issues",
-  "Data Recovery",
-  "General Diagnosis",
-  "Other",
-];
+interface ServiceOption {
+  _id: string;
+  name: string;
+  repairId: string;
+}
 
 export function AddReviewModal({
   open,
@@ -116,6 +63,60 @@ export function AddReviewModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRating, setSelectedRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
+  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [loadingServices, setLoadingServices] = useState(true);
+
+  // Fetch services from backend
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await fetch("/api/admin/repairs?activeOnly=true");
+        if (response.ok) {
+          const data = await response.json();
+          setServices(data.data || []);
+        } else {
+          // Fallback to hardcoded services if API fails
+          setServices([
+            { _id: "1", name: "Screen Replacement", repairId: "screen" },
+            { _id: "2", name: "Battery Replacement", repairId: "battery" },
+            { _id: "3", name: "Water Damage Repair", repairId: "water" },
+            { _id: "4", name: "Camera Repair", repairId: "camera" },
+            { _id: "5", name: "Charging Port Repair", repairId: "charging" },
+            { _id: "6", name: "Speaker Repair", repairId: "speaker" },
+            { _id: "7", name: "Back Glass Replacement", repairId: "backglass" },
+            { _id: "8", name: "Button Repair", repairId: "button" },
+            { _id: "9", name: "Face ID/Touch ID Repair", repairId: "faceid" },
+            { _id: "10", name: "Software Issues", repairId: "software" },
+            { _id: "11", name: "Data Recovery", repairId: "data" },
+            { _id: "12", name: "General Diagnosis", repairId: "diagnosis" },
+            { _id: "13", name: "Other", repairId: "other" },
+          ]);
+        }
+      } catch (error) {
+        console.error("Error fetching services:", error);
+        // Fallback to hardcoded services
+        setServices([
+          { _id: "1", name: "Screen Replacement", repairId: "screen" },
+          { _id: "2", name: "Battery Replacement", repairId: "battery" },
+          { _id: "3", name: "Water Damage Repair", repairId: "water" },
+          { _id: "4", name: "Camera Repair", repairId: "camera" },
+          { _id: "5", name: "Charging Port Repair", repairId: "charging" },
+          { _id: "6", name: "Speaker Repair", repairId: "speaker" },
+          { _id: "7", name: "Back Glass Replacement", repairId: "backglass" },
+          { _id: "8", name: "Button Repair", repairId: "button" },
+          { _id: "9", name: "Face ID/Touch ID Repair", repairId: "faceid" },
+          { _id: "10", name: "Software Issues", repairId: "software" },
+          { _id: "11", name: "Data Recovery", repairId: "data" },
+          { _id: "12", name: "General Diagnosis", repairId: "diagnosis" },
+          { _id: "13", name: "Other", repairId: "other" },
+        ]);
+      } finally {
+        setLoadingServices(false);
+      }
+    };
+
+    fetchServices();
+  }, []);
 
   const form = useForm<ReviewFormData>({
     resolver: zodResolver(reviewSchema),
@@ -228,23 +229,12 @@ export function AddReviewModal({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Device Model</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your device" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent className="max-h-[200px]">
-                        {deviceOptions.map((device) => (
-                          <SelectItem key={device} value={device}>
-                            {device}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Input
+                        placeholder="Enter your device model (e.g., iPhone 15 Pro)"
+                        {...field}
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -259,16 +249,17 @@ export function AddReviewModal({
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
+                      disabled={loadingServices}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select service type" />
+                          <SelectValue placeholder={loadingServices ? "Loading services..." : "Select service type"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent className="max-h-[200px]">
-                        {serviceOptions.map((service) => (
-                          <SelectItem key={service} value={service}>
-                            {service}
+                        {services.map((service) => (
+                          <SelectItem key={service._id} value={service.name}>
+                            {service.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
