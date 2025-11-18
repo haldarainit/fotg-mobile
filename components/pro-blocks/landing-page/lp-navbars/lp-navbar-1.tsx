@@ -96,7 +96,7 @@ export function LpNavbar1() {
             <Link href="/get-in-touch">
               <Button className="w-full">Get In Touch</Button>
             </Link>
-            {!isLoading && (
+            {/* {!isLoading && (
               isAuthenticated ? (
                 <Link href="/admin">
                   <Button variant="outline" className="w-full gap-2">
@@ -112,7 +112,7 @@ export function LpNavbar1() {
                   </Button>
                 </Link>
               )
-            )}
+            )} */}
           </div>
         )}
       </div>

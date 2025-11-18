@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     // Determine day of week in configured timezone
     const TZ = process.env.TIMEZONE || "America/Chicago";
-    const weekdayShort = new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { timeZone: TZ, weekday: "short" });
+    const weekdayShort = new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "short" }).format(new Date(date + 'T12:00:00'));
     const dayMap: any = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
     const dayOfWeek = dayMap[weekdayShort as keyof typeof dayMap];
 
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     const activeSlots = timeSlots.filter((slot: any) => slot.active);
 
     // Use timezone-aware bookingDateKey
-    const dateKey = new Date(`${date}T00:00:00`).toLocaleDateString("en-CA", { timeZone: TZ });
+    const dateKey = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(date + 'T12:00:00'));
     // Support legacy bookings without bookingDateKey by matching either the key or the date range
     const startOfDayFallback = new Date(date);
     startOfDayFallback.setHours(0, 0, 0, 0);
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const dateKey = new Date(`${bookingDate}T00:00:00`).toLocaleDateString("en-CA", { timeZone: TZ });
+      const dateKey = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(bookingDate + 'T12:00:00'));
       const startOfDayFallback = new Date(bookingDate);
       startOfDayFallback.setHours(0, 0, 0, 0);
       const endOfDayFallback = new Date(bookingDate);
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
 
     // Create booking (include timezone-aware date key)
     const bookingDateKey = serviceMethod === "location" && bookingDate
-      ? new Date(`${bookingDate}T00:00:00`).toLocaleDateString("en-CA", { timeZone: TZ })
+      ? new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(bookingDate + 'T12:00:00'))
       : undefined;
 
     // Create booking

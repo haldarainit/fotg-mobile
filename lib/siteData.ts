@@ -236,7 +236,7 @@ export const siteData = {
     description: "Ready to fix your device? Contact us today for a free quote or to schedule your repair. Our friendly team is here to help!",
     phone: "+1 (325) 321-9502",
     phone2: "+1 (214) 656-9700",
-    email: "support@fotgmobile.com",
+    email: "fotgmobile@gmail.com",
     address: "Dallas, Texas, United States",
     hours: "Open 24/7 - Always Available",
     social: {

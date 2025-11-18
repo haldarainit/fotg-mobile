@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
       // Use timezone-aware date key (YYYY-MM-DD) for checking
       const TZ = process.env.TIMEZONE || "America/Chicago";
-      const bookingDateKey = new Date(bookingDate).toLocaleDateString("en-CA", { timeZone: TZ });
+      const bookingDateKey = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(bookingDate + 'T12:00:00'));
 
       // Also support legacy bookings without bookingDateKey by falling back to date range
       const startOfDayFallback = new Date(bookingDate);
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
     // Prepare timezone-aware bookingDateKey
     const TZ = process.env.TIMEZONE || "America/Chicago";
     const bookingDateKey = serviceMethod === "location" && bookingDate
-      ? new Date(bookingDate).toLocaleDateString("en-CA", { timeZone: TZ })
+      ? new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(bookingDate + 'T12:00:00'))
       : undefined;
 
     // Save booking to database (include ticketId)

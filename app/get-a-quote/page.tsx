@@ -2288,8 +2288,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                           SEND YOUR DEVICE TO
                         </h4>
                         <div className="font-mono text-sm bg-white dark:bg-gray-800 p-3 rounded border">
-                          PO Box 530133<br />
-                          Saint Petersburg, FL 33747
+                          2950 Mustang<br />
+                          Drive No 1102
                         </div>
                         <p className="text-xs text-blue-800 dark:text-blue-200 italic">
                           *Use this address exactly as shown, company name is not required.
