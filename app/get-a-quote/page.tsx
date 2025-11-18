@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -85,7 +85,7 @@ const SERVICE_METHODS = [
   },
 ];
 
-export default function GetAQuotePage() {
+function GetAQuotePageContent() {
   const [step, setStep] = useState<
     "device-type" | "brand" | "model" | "color" | "repair" | "finalize"
   >("device-type");
@@ -2989,5 +2989,13 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
 
       <Footer1 />
     </>
+  );
+}
+
+export default function GetAQuotePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <GetAQuotePageContent />
+    </Suspense>
   );
 }
