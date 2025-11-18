@@ -2281,11 +2281,11 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                         Your Pickup Address
                       </h3>
 
-                      {/* Shipping Terms Note */}
+                      {/* Shipping Terms Note  */}
                       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
                         <h4 className="font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
-                          <Truck className="h-4 w-4" />
-                          SEND YOUR DEVICE TO
+                          <Truck className="h-4 w-4 " />
+                          SEND YOUR DEVICE TO 
                         </h4>
                         <div className="font-mono text-sm bg-white dark:bg-gray-800 p-3 rounded border">
                           2950 Mustang<br />
