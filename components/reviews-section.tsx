@@ -33,6 +33,10 @@ export function ReviewsSection() {
   const [cardWidth, setCardWidth] = useState(300);
   const [cardsPerView, setCardsPerView] = useState(1);
   const autoPlayRef = useRef<NodeJS.Timeout | null>(null);
+  const [slideIndex, setSlideIndex] = useState(0); // visual slide index used for transform
+  const [isWrapping, setIsWrapping] = useState<null | "next" | "prev">(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const transitionDuration = 500; // ms (keep in sync with CSS)
 
   const fetchReviews = async () => {
     try {
@@ -149,21 +153,65 @@ export function ReviewsSection() {
     };
   }, [reviews.length, isHovered, currentIndex]);
 
-  const handlePrevious = () => {
-    setCurrentIndex((prev) => {
-      if (prev === 0) {
-        return reviews.length - 1;
-      }
-      return prev - 1;
-    });
+  // New next/previous logic with wrap-only clone rendering
+  const handleNext = () => {
+    if (isAnimating || reviews.length === 0) return;
+
+    // Normal advance
+    if (currentIndex < reviews.length - 1) {
+      const next = currentIndex + 1;
+      setCurrentIndex(next);
+      setSlideIndex(next);
+      return;
+    }
+
+    // Wrap to start: render with appended first clone and animate to it
+    setIsWrapping("next");
+    // Start animation to virtual index == reviews.length (appended clone)
+    setSlideIndex(reviews.length);
+    setIsAnimating(true);
+
+    // After animation completes, jump back to logical index 0 without animation
+    setTimeout(() => {
+      setIsAnimating(false);
+      setIsWrapping(null);
+      setCurrentIndex(0);
+      setSlideIndex(0);
+    }, transitionDuration + 20);
   };
 
-  const handleNext = () => {
-    setCurrentIndex((prev) => {
-      if (prev >= reviews.length - 1) {
-        return 0;
-      }
-      return prev + 1;
+  const handlePrevious = () => {
+    if (isAnimating || reviews.length === 0) return;
+
+    // Normal backwards
+    if (currentIndex > 0) {
+      const prev = currentIndex - 1;
+      setCurrentIndex(prev);
+      setSlideIndex(prev);
+      return;
+    }
+
+    // Wrap to end: render with prepended last clone and animate to it
+    // To avoid jump when switching rendered array, first switch into 'prev' wrapping
+    // and set slideIndex=1 (real index 0 sits at position 1). Then animate to 0.
+    setIsWrapping("prev");
+    setSlideIndex(1);
+
+    // allow DOM to render the prepended clone before animating
+    requestAnimationFrame(() => {
+      // small delay to ensure transform transition picks up
+      setTimeout(() => {
+        setSlideIndex(0);
+        setIsAnimating(true);
+
+        setTimeout(() => {
+          setIsAnimating(false);
+          setIsWrapping(null);
+          const lastIndex = reviews.length - 1;
+          setCurrentIndex(lastIndex);
+          setSlideIndex(lastIndex);
+        }, transitionDuration + 20);
+      }, 20);
     });
   };
 
@@ -178,10 +226,17 @@ export function ReviewsSection() {
     ));
   };
 
-  // Create seamless infinite scroll array
-  const displayReviews = reviews.length > 0 
-    ? [reviews[reviews.length - 1], ...reviews, reviews[0]]
-    : [];
+  // Determine what array to render: normal reviews or temporary wrap clones
+  const renderReviews = (() => {
+    if (reviews.length === 0) return [] as Review[];
+    if (isWrapping === "next") {
+      return [...reviews, reviews[0]]; // appended first clone
+    }
+    if (isWrapping === "prev") {
+      return [reviews[reviews.length - 1], ...reviews]; // prepended last clone
+    }
+    return reviews;
+  })();
 
   const cardGap = 16;
   const totalCardWidth = cardWidth + cardGap;
@@ -371,12 +426,12 @@ export function ReviewsSection() {
                 onMouseLeave={() => setIsHovered(false)}
               >
                 <div
-                  className="flex transition-transform duration-500 ease-in-out"
+                  className={`flex ${isAnimating ? "transition-transform duration-500 ease-in-out" : "transition-none"}`}
                   style={{
-                    transform: `translateX(-${(currentIndex + 1) * totalCardWidth}px)`,
+                    transform: `translateX(-${slideIndex * totalCardWidth}px)`,
                   }}
                 >
-                  {displayReviews.map((review, index) => (
+                    {renderReviews.map((review, index) => (
                     <div
                       key={`${review.id}-${index}`}
                       className="relative rounded-3xl overflow-hidden flex-shrink-0"
