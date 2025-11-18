@@ -23,6 +23,7 @@ interface Review {
   device: string
   service: string
   review: string
+  image?: string
   approved: boolean
   createdAt: string
 }
@@ -59,10 +60,13 @@ export function ReviewsTable() {
 
   const handleApproval = async (reviewId: string, approved: boolean) => {
     try {
+      const formData = new FormData()
+      formData.append("reviewId", reviewId)
+      formData.append("approved", approved.toString())
+
       const response = await fetch("/api/admin/reviews", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reviewId, approved }),
+        body: formData,
       })
 
       const data = await response.json()
@@ -97,6 +101,39 @@ export function ReviewsTable() {
       console.error("Error deleting review:", error)
       toast.error("Failed to delete review")
     }
+  }
+
+  const handleEditImage = async (reviewId: string) => {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = "image/*"
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+
+      const formData = new FormData()
+      formData.append("reviewId", reviewId)
+      formData.append("image", file)
+
+      try {
+        const response = await fetch("/api/admin/reviews", {
+          method: "PATCH",
+          body: formData,
+        })
+
+        const data = await response.json()
+        if (data.success) {
+          toast.success("Image updated successfully")
+          fetchReviews()
+        } else {
+          toast.error(data.error)
+        }
+      } catch (error) {
+        console.error("Error updating image:", error)
+        toast.error("Failed to update image")
+      }
+    }
+    input.click()
   }
 
   if (isLoading) {
@@ -163,6 +200,7 @@ export function ReviewsTable() {
                 <TableHead>Rating</TableHead>
                 <TableHead>Device</TableHead>
                 <TableHead>Service</TableHead>
+                <TableHead>Profile Image</TableHead>
                 <TableHead className="max-w-md">Review Comment</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
@@ -189,6 +227,17 @@ export function ReviewsTable() {
                     </TableCell>
                     <TableCell>{review.device}</TableCell>
                     <TableCell>{review.service}</TableCell>
+                    <TableCell>
+                      {review.image ? (
+                        <img
+                          src={review.image}
+                          alt="Review image"
+                          className="h-16 w-16 object-cover rounded"
+                        />
+                      ) : (
+                        <span className="text-muted-foreground text-sm">No image</span>
+                      )}
+                    </TableCell>
                     <TableCell className="max-w-md">
                       <div className="max-h-20 overflow-y-auto text-sm">
                         {review.review}
@@ -233,6 +282,15 @@ export function ReviewsTable() {
                             Reject
                           </Button>
                         )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditImage(review._id)}
+                          title="Edit image"
+                        >
+                          <RefreshCw className="h-4 w-4 mr-1" />
+                          Edit Image
+                        </Button>
                         <Button
                           size="sm"
                           variant="destructive"

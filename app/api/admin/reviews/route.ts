@@ -67,19 +67,49 @@ export async function PATCH(request: NextRequest) {
   try {
     await connectDB();
 
-    const body = await request.json();
-    const { reviewId, approved } = body;
+    const formData = await request.formData();
+    const reviewId = formData.get("reviewId") as string;
+    const approved = formData.get("approved") === "true";
+    const imageFile = formData.get("image") as File | null;
 
-    if (!reviewId || typeof approved !== "boolean") {
+    if (!reviewId) {
       return NextResponse.json(
-        { success: false, error: "Review ID and approval status required" },
+        { success: false, error: "Review ID required" },
         { status: 400 }
       );
     }
 
+    let imageUrl = "";
+    if (imageFile) {
+      // Upload image using the existing upload API
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", imageFile);
+
+      const baseUrl = new URL(request.url).origin;
+      const uploadResponse = await fetch(`${baseUrl}/api/upload`, {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      if (!uploadResponse.ok) {
+        return NextResponse.json(
+          { success: false, error: "Failed to upload image" },
+          { status: 500 }
+        );
+      }
+
+      const uploadResult = await uploadResponse.json();
+      imageUrl = uploadResult.data.url;
+    }
+
+    const updateData: any = { approved };
+    if (imageUrl) {
+      updateData.image = imageUrl;
+    }
+
     const updatedReview = await Review.findByIdAndUpdate(
       reviewId,
-      { approved },
+      updateData,
       { new: true }
     );
 
@@ -92,7 +122,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Review ${approved ? "approved" : "rejected"} successfully`,
+      message: `Review updated successfully`,
       data: updatedReview,
     });
   } catch (error) {

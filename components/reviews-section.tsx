@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Star, CheckCircle, Phone, Plus, Loader2 } from "lucide-react";
 import { siteData } from "@/lib/siteData";
 import { Tagline } from "@/components/pro-blocks/landing-page/tagline";
@@ -19,6 +19,7 @@ interface Review {
   device: string;
   service: string;
   review: string;
+  image?: string;
   date?: string;
   createdAt: Date;
   approved: boolean;
@@ -268,15 +269,21 @@ export function ReviewsSection() {
                   className="bg-background rounded-xl border p-6 shadow-sm"
                 >
                   <CardContent className="p-0 space-y-4">
-                    {/* Rating Stars */}
-                    <div className="flex gap-1">
-                      {renderStars(review.rating)}
-                    </div>
-
                     {/* Review Text */}
                     <blockquote className="text-muted-foreground text-sm leading-relaxed">
                       &quot;{review.review}&quot;
                     </blockquote>
+
+                    {/* Review Image */}
+                    {/* {review.image && (
+                      <div className="mt-4">
+                        <img
+                          src={review.image}
+                          alt="Review image"
+                          className="w-full h-32 object-cover rounded-lg"
+                        />
+                      </div>
+                    )} */}
 
                     {/* Service Info */}
                     <div className="flex flex-wrap gap-2">
@@ -290,19 +297,30 @@ export function ReviewsSection() {
 
                     {/* Author */}
                     <div className="flex items-center gap-3 pt-2 border-t">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                          {review.name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <span className="text-foreground font-medium text-sm">
-                          {review.name}
-                        </span>
-                        <p className="text-muted-foreground text-xs">
-                          {review.date}
-                        </p>
-                      </div>
+                        <Avatar className="h-8 w-8">
+                          {review.image ? (
+                            <AvatarImage src={review.image} alt={review.name} />
+                          ) : (
+                            <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                              {review.name.charAt(0)}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-foreground font-medium text-sm">
+                              {review.name}
+                            </span>
+                            {!review.image && (
+                              <span className="text-muted-foreground text-xs">
+                                Update your image
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-muted-foreground text-xs">
+                            {review.date}
+                          </p>
+                        </div>
                     </div>
                   </CardContent>
                 </Card>

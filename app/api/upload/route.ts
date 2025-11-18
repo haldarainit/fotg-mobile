@@ -21,9 +21,6 @@ function checkAuth(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const authError = checkAuth(request);
-  if (authError) return authError;
-
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;

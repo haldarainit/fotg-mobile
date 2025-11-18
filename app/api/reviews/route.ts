@@ -37,8 +37,14 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
 
-    const body = await request.json();
-    const { name, email, rating, device, service, review } = body;
+    const formData = await request.formData();
+    const name = formData.get("name") as string;
+    const email = formData.get("email") as string;
+    const rating = parseInt(formData.get("rating") as string);
+    const device = formData.get("device") as string;
+    const service = formData.get("service") as string;
+    const review = formData.get("review") as string;
+    const imageFile = formData.get("image") as File | null;
 
     // Validation
     if (!name || !email || !rating || !device || !service || !review) {
@@ -77,6 +83,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let imageUrl = "";
+    if (imageFile) {
+      // Upload image using the existing upload API
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", imageFile);
+
+      const baseUrl = new URL(request.url).origin;
+      const uploadResponse = await fetch(`${baseUrl}/api/upload`, {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      if (!uploadResponse.ok) {
+        return NextResponse.json(
+          { success: false, error: "Failed to upload image" },
+          { status: 500 }
+        );
+      }
+
+      const uploadResult = await uploadResponse.json();
+      imageUrl = uploadResult.data.url;
+    }
+
     // Create new review
     const newReview = new Review({
       name,
@@ -85,6 +114,7 @@ export async function POST(request: NextRequest) {
       device,
       service,
       review,
+      image: imageUrl,
       approved: true, // Auto-approve for demo (in production, you might want moderation)
     });
 

@@ -52,14 +52,14 @@ export function BrandRepairSection() {
                   {/* Image Container */}
                   <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
                     {/* Badge */}
-                    <div className="absolute left-4 top-4 z-10 rounded-lg bg-background px-3 py-1.5 text-xs font-semibold shadow-sm">
+                    {/* <div className="absolute left-4 top-1 z-10 rounded-lg bg-background px-3 py-1.5 text-xs font-semibold shadow-sm">
                       <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                         {brand.badge.split(" ").slice(0, -2).join(" ")}
                       </div>
                       <div className="text-sm font-bold">
                         {brand.badge.split(" ").slice(-2).join(" ")}
                       </div>
-                    </div>
+                    </div> */}
 
                     {/* Device Image */}
                     <Image

@@ -7,6 +7,7 @@ export interface IReview extends Document {
   device: string;
   service: string;
   review: string;
+  image?: string; // Optional image URL
   approved: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -53,6 +54,10 @@ const ReviewSchema = new Schema<IReview>(
       trim: true,
       minlength: [10, "Review must be at least 10 characters"],
       maxlength: [1000, "Review must be less than 1000 characters"],
+    },
+    image: {
+      type: String,
+      trim: true,
     },
     approved: {
       type: Boolean,
