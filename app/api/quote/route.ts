@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       serviceMethod,
       customerType,
       firstName,
-            <p style="margin-top:18px;color:#666;">If you have questions, reply to this email or contact support.</p>
+      lastName,
       phone,
       email,
       notes,
