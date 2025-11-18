@@ -81,7 +81,7 @@ export function FeaturesSection() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link href="/contact">
+              <Link href="/contact-us">
                 <Button
                   size="lg"
                   className="w-full rounded-full bg-green-600 px-8 hover:bg-green-700 sm:w-auto"

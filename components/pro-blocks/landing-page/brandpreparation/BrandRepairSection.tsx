@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 // links removed per request; cards are now static
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -47,38 +49,35 @@ export function BrandRepairSection() {
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
           {brands.map((brand) => (
             <div key={brand.name}>
-              <Card className="h-full overflow-hidden">
-                <CardContent className="flex h-full flex-col p-0">
-                  {/* Image Container */}
-                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
-                    {/* Badge */}
-                    {/* <div className="absolute left-4 top-1 z-10 rounded-lg bg-background px-3 py-1.5 text-xs font-semibold shadow-sm">
-                      <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                        {brand.badge.split(" ").slice(0, -2).join(" ")}
-                      </div>
-                      <div className="text-sm font-bold">
-                        {brand.badge.split(" ").slice(-2).join(" ")}
-                      </div>
-                    </div> */}
+              <Link
+                href={`/get-a-quote?device=smartphone&brand=${encodeURIComponent(
+                  brand.name.toLowerCase()
+                )}`}
+                className="block"
+              >
+                <Card className="h-full overflow-hidden hover:shadow-md transition-shadow">
+                  <CardContent className="flex h-full flex-col p-0">
+                    {/* Image Container */}
+                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+                      {/* Device Image */}
+                      <Image
+                        src={brand.image}
+                        alt={`${brand.name} device`}
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
 
-                    {/* Device Image */}
-                    <Image
-                      src={brand.image}
-                      alt={`${brand.name} device`}
-                      fill
-                      className="object-contain"
-                    />
-                  </div>
-
-                  {/* CTA Text */}
-                  <div className="flex items-center justify-between px-5 py-4 md:px-6 md:py-5">
-                    <h3 className="text-lg font-semibold md:text-xl">
-                      {brand.cta}
-                    </h3>
-                    {/* arrow removed per request */}
-                  </div>
-                </CardContent>
-              </Card>
+                    {/* CTA Text */}
+                    <div className="flex items-center justify-between px-5 py-4 md:px-6 md:py-5">
+                      <h3 className="text-lg font-semibold md:text-xl">
+                        {brand.cta}
+                      </h3>
+                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
             </div>
           ))}
         </div>

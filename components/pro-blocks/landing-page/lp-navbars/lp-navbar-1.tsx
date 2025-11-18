@@ -12,7 +12,7 @@ const MENU_ITEMS = [
   { label: "Home", href: "/" },
   { label: "Get A Quote", href: "/get-a-quote" },
   { label: "Reviews", href: "/reviews" },
-  { label: "Contact Us", href: "/contact-us" },
+  // { label: "Contact Us", href: "/contact-us" },
   // { label: "FAQ", href: "#faq" },
 ] as const;
 

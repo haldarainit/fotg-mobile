@@ -97,7 +97,7 @@ export function HeroSection2() {
                 {siteData.hero.primaryCTA}
               </Button>
             </Link>
-            <Link href="#how-it-works">
+            <Link href="/contact-us">
               <Button
                 variant="ghost"
                 className="w-full justify-center gap-2 sm:w-auto"

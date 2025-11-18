@@ -416,6 +416,30 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // If ?brand= is present, auto-select that brand once brands are loaded
+  useEffect(() => {
+    const brandParam = searchParams?.get?.("brand");
+    if (!brandParam) return;
+    if (isLoadingBrands) return;
+    if (!brands || brands.length === 0) return;
+    if (selectedBrand) return; // don't override manual selection
+
+    const lower = brandParam.toLowerCase();
+    const found = brands.find(
+      (b) => String(b.id).toLowerCase() === lower || b.name.toLowerCase() === lower
+    );
+    if (found) {
+      setSelectedBrand(found);
+      // If device param wasn't set earlier, try to set device type based on brand.deviceTypes
+      if (!selectedDeviceType && found.deviceTypes && found.deviceTypes.length > 0) {
+        setSelectedDeviceType(found.deviceTypes[0]);
+      }
+      setStep("model");
+    }
+    // run when brands finish loading or search params change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brands, isLoadingBrands, searchParams]);
+
   // Fetch available time slots when date is selected
   useEffect(() => {
     const fetchAvailableSlots = async () => {
