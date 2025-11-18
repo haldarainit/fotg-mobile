@@ -235,30 +235,52 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
       <div className="transition-all duration-200">
         {visibleVariants.join(", ")}
         {hasMore && !isExpanded && (
-          <button
+          <span
+            role="button"
+            tabIndex={0}
             onClick={(e) => {
               e.stopPropagation();
-              setExpandedVariants(prev => new Set(prev).add(modelId));
+              setExpandedVariants((prev) => new Set(prev).add(modelId));
             }}
-            className="ml-1 text-primary hover:underline"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                setExpandedVariants((prev) => new Set(prev).add(modelId));
+              }
+            }}
+            className="ml-1 text-primary hover:underline cursor-pointer"
           >
             +{variants.length - maxVisible} more
-          </button>
+          </span>
         )}
         {hasMore && isExpanded && !showAllByDefault && (
-          <button
+          <span
+            role="button"
+            tabIndex={0}
             onClick={(e) => {
               e.stopPropagation();
-              setExpandedVariants(prev => {
+              setExpandedVariants((prev) => {
                 const newSet = new Set(prev);
                 newSet.delete(modelId);
                 return newSet;
               });
             }}
-            className="ml-1 text-primary hover:underline"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.stopPropagation();
+                setExpandedVariants((prev) => {
+                  const newSet = new Set(prev);
+                  newSet.delete(modelId);
+                  return newSet;
+                });
+              }
+            }}
+            className="ml-1 text-primary hover:underline cursor-pointer"
           >
             show less
-          </button>
+          </span>
         )}
       </div>
       {/* Hover tooltip showing all variants */}
