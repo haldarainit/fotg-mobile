@@ -70,7 +70,7 @@ export function LpNavbar1() {
           <Link href="/contact-us">
             <Button>Get In Touch</Button>
           </Link>
-          {!isLoading && (
+          {/* {!isLoading && (
             isAuthenticated ? (
               <Link href="/admin">
                 <Button variant="outline" className="gap-2">
@@ -86,7 +86,7 @@ export function LpNavbar1() {
                 </Button>
               </Link>
             )
-          )}
+          )} */}
         </div>
 
         {/* Mobile Navigation */}
