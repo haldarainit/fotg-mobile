@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import nodemailer from "nodemailer";
+import { getTransporter } from "@/lib/smtp";
 import connectDB from "@/lib/mongodb";
 import mongoose from "mongoose";
 
@@ -46,16 +46,8 @@ export async function POST(request: NextRequest) {
       // Continue with email sending even if DB save fails
     }
 
-    // Create a transporter using Hostinger SMTP settings
-    const transporter = nodemailer.createTransport({
-      host: "smtp.hostinger.com",
-      port: 465,
-      secure: true, // true for 465, false for other ports
-      auth: {
-        user: process.env.HOSTINGER_EMAIL, // Your Hostinger email
-        pass: process.env.HOSTINGER_PASSWORD, // Your Hostinger email password
-      },
-    });
+      // Create transporter from centralized SMTP helper (defaults to smtp.gmail.com)
+      const transporter = getTransporter();
 
     // Email content
     const mailOptions = {
@@ -103,13 +95,8 @@ export async function POST(request: NextRequest) {
 New Contact Form Submission
 
 Customer Information:
-- Name: ${name}
-- Email: ${email}
-- Phone: ${phone}
 
 Device & Issue Details:
-- Device Model: ${device}
-- Issue Type: ${issue}
 
 ${message ? `Additional Details:\n${message}` : ""}
 

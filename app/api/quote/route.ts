@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import nodemailer from "nodemailer";
+import { getTransporter } from "@/lib/smtp";
 import connectDB from "@/lib/mongodb";
 import Booking from "@/models/Booking";
 import RepairItem from "@/models/RepairItem";
@@ -172,16 +172,8 @@ export async function POST(request: NextRequest) {
       status: "pending",
     });
 
-    // Create a transporter using Hostinger SMTP settings
-    const transporter = nodemailer.createTransport({
-      host: "smtp.hostinger.com",
-      port: 465,
-      secure: true,
-      auth: {
-        user: process.env.HOSTINGER_EMAIL,
-        pass: process.env.HOSTINGER_PASSWORD,
-      },
-    });
+    // Create transporter from centralized SMTP helper (defaults to smtp.gmail.com)
+    const transporter = getTransporter();
 
     // Get service method details with booking info
     let serviceMethodText = "";

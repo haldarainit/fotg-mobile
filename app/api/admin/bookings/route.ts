@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
-import nodemailer from "nodemailer";
+import { getTransporter } from "@/lib/smtp";
 import Booking from "@/models/Booking";
 
 // Middleware to check authentication
@@ -97,15 +97,7 @@ export async function PUT(request: NextRequest) {
     // Attempt to send notification email to customer (do not fail request if email fails)
     let emailSent = false;
     try {
-      const transporter = nodemailer.createTransport({
-        host: "smtp.hostinger.com",
-        port: 465,
-        secure: true,
-        auth: {
-          user: process.env.HOSTINGER_EMAIL,
-          pass: process.env.HOSTINGER_PASSWORD,
-        },
-      });
+      const transporter = getTransporter();
 
       const statusLabel = (status || "updated").toString();
       let subject = `Booking ${booking?.bookingId} status: ${statusLabel}`;
