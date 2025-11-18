@@ -100,6 +100,7 @@ export async function PUT(request: NextRequest) {
       const transporter = getTransporter();
 
       const statusLabel = (status || "updated").toString();
+      const TZ = process.env.TIMEZONE || "America/Chicago";
       let subject = `Booking ${booking?.bookingId} status: ${statusLabel}`;
       let html = `
         <div style="font-family: Arial, sans-serif; max-width:700px;margin:0 auto;">
@@ -110,7 +111,7 @@ export async function PUT(request: NextRequest) {
             <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Customer:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${booking.firstName} ${booking.lastName}</td></tr>
             <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Device:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${booking.brandName} ${booking.modelName} (${booking.colorName})</td></tr>
             <tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Service Method:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${booking.serviceMethod === 'location' ? 'Service at your location' : 'Ship device for repair'}</td></tr>
-            ${booking.serviceMethod === 'location' && booking.bookingDate ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Booking Date:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${new Date(booking.bookingDate).toLocaleDateString()}</td></tr>` : ''}
+            ${booking.serviceMethod === 'location' && booking.bookingDate ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Booking Date:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${new Date(booking.bookingDate).toLocaleDateString('en-US',{ timeZone: TZ })}</td></tr>` : ''}
             ${booking.serviceMethod === 'location' && booking.bookingTimeSlot ? `<tr><td style="padding:8px;border-bottom:1px solid #eee;color:#666;font-weight:bold;">Time Slot:</td><td style="padding:8px;border-bottom:1px solid #eee;color:#333;">${booking.bookingTimeSlot}</td></tr>` : ''}
           </table>
 

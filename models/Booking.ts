@@ -21,6 +21,7 @@ export interface IBooking extends Document {
   // Service Details
   serviceMethod: "location" | "pickup";
   bookingDate?: Date; // For location service
+  bookingDateKey?: string; // Date string in YYYY-MM-DD for the configured timezone
   bookingTimeSlot?: string; // For location service (e.g., "9:00 am - 11:00 am")
   
   // Shipping Address (for pickup service)
@@ -93,7 +94,9 @@ const BookingSchema = new Schema<IBooking>(
       enum: ["location", "pickup"], 
       required: true 
     },
-    bookingDate: { type: Date },
+      bookingDate: { type: Date },
+      // bookingDateKey is a date string in YYYY-MM-DD for the configured timezone
+      bookingDateKey: { type: String, index: true },
     bookingTimeSlot: { type: String },
     
     // Shipping Address

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       serviceMethod,
       customerType,
       firstName,
-      lastName,
+            <p style="margin-top:18px;color:#666;">If you have questions, reply to this email or contact support.</p>
       phone,
       email,
       notes,
@@ -54,21 +54,24 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check if the time slot is already booked
-      const startOfDay = new Date(bookingDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(bookingDate);
-      endOfDay.setHours(23, 59, 59, 999);
+      // Use timezone-aware date key (YYYY-MM-DD) for checking
+      const TZ = process.env.TIMEZONE || "America/Chicago";
+      const bookingDateKey = new Date(bookingDate).toLocaleDateString("en-CA", { timeZone: TZ });
+
+      // Also support legacy bookings without bookingDateKey by falling back to date range
+      const startOfDayFallback = new Date(bookingDate);
+      startOfDayFallback.setHours(0, 0, 0, 0);
+      const endOfDayFallback = new Date(bookingDate);
+      endOfDayFallback.setHours(23, 59, 59, 999);
 
       const existingBooking = await Booking.findOne({
-        bookingDate: {
-          $gte: startOfDay,
-          $lte: endOfDay,
-        },
         bookingTimeSlot,
         serviceMethod: "location",
         status: { $ne: "cancelled" },
+        $or: [
+          { bookingDateKey },
+          { bookingDate: { $gte: startOfDayFallback, $lte: endOfDayFallback } },
+        ],
       });
 
       if (existingBooking) {
@@ -146,6 +149,12 @@ export async function POST(request: NextRequest) {
       attempts++;
     }
 
+    // Prepare timezone-aware bookingDateKey
+    const TZ = process.env.TIMEZONE || "America/Chicago";
+    const bookingDateKey = serviceMethod === "location" && bookingDate
+      ? new Date(bookingDate).toLocaleDateString("en-CA", { timeZone: TZ })
+      : undefined;
+
     // Save booking to database (include ticketId)
     const booking = await Booking.create({
       firstName,
@@ -163,6 +172,7 @@ export async function POST(request: NextRequest) {
       colorName: color?.name,
       serviceMethod,
       bookingDate: serviceMethod === "location" ? new Date(bookingDate) : undefined,
+      bookingDateKey: bookingDateKey,
       bookingTimeSlot: serviceMethod === "location" ? bookingTimeSlot : undefined,
       shippingAddress: serviceMethod === "pickup" ? shippingAddress : undefined,
       repairs: normalizedRepairs,
@@ -182,11 +192,13 @@ export async function POST(request: NextRequest) {
     if (serviceMethod === "location") {
       serviceMethodText = "Service at your location (Mobile Repair)";
       if (bookingDate && bookingTimeSlot) {
+        const TZ = process.env.TIMEZONE || "America/Chicago";
         const formattedDate = new Date(bookingDate).toLocaleDateString("en-US", {
           weekday: "long",
           year: "numeric",
           month: "long",
           day: "numeric",
+          timeZone: TZ,
         });
         serviceDetailsHtml = `
           <tr>

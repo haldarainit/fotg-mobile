@@ -37,9 +37,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Check if the day is operational
-    const dateObj = new Date(date);
-    const dayOfWeek = dateObj.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    // Determine day of week in configured timezone
+    const TZ = process.env.TIMEZONE || "America/Chicago";
+    const weekdayShort = new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { timeZone: TZ, weekday: "short" });
+    const dayMap: any = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const dayOfWeek = dayMap[weekdayShort as keyof typeof dayMap];
 
     if (!operatingDays.includes(dayOfWeek)) {
       return NextResponse.json({
@@ -56,20 +58,21 @@ export async function GET(request: NextRequest) {
     // Get active time slots
     const activeSlots = timeSlots.filter((slot: any) => slot.active);
 
-    // Get all bookings for this date
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    // Use timezone-aware bookingDateKey
+    const dateKey = new Date(`${date}T00:00:00`).toLocaleDateString("en-CA", { timeZone: TZ });
+    // Support legacy bookings without bookingDateKey by matching either the key or the date range
+    const startOfDayFallback = new Date(date);
+    startOfDayFallback.setHours(0, 0, 0, 0);
+    const endOfDayFallback = new Date(date);
+    endOfDayFallback.setHours(23, 59, 59, 999);
 
     const bookings = await Booking.find({
-      bookingDate: {
-        $gte: startOfDay,
-        $lte: endOfDay,
-      },
       serviceMethod: "location",
       status: { $ne: "cancelled" },
+      $or: [
+        { bookingDateKey: dateKey },
+        { bookingDate: { $gte: startOfDayFallback, $lte: endOfDayFallback } },
+      ],
     }).lean();
 
     // Get booked time slots (using the slot label as identifier)
@@ -146,21 +149,20 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check if the time slot is already booked
-      const startOfDay = new Date(bookingDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(bookingDate);
-      endOfDay.setHours(23, 59, 59, 999);
+      const dateKey = new Date(`${bookingDate}T00:00:00`).toLocaleDateString("en-CA", { timeZone: TZ });
+      const startOfDayFallback = new Date(bookingDate);
+      startOfDayFallback.setHours(0, 0, 0, 0);
+      const endOfDayFallback = new Date(bookingDate);
+      endOfDayFallback.setHours(23, 59, 59, 999);
 
       const existingBooking = await Booking.findOne({
-        bookingDate: {
-          $gte: startOfDay,
-          $lte: endOfDay,
-        },
         bookingTimeSlot,
         serviceMethod: "location",
         status: { $ne: "cancelled" },
+        $or: [
+          { bookingDateKey: dateKey },
+          { bookingDate: { $gte: startOfDayFallback, $lte: endOfDayFallback } },
+        ],
       });
 
       if (existingBooking) {
@@ -189,6 +191,11 @@ export async function POST(request: NextRequest) {
       attempts++;
     }
 
+    // Create booking (include timezone-aware date key)
+    const bookingDateKey = serviceMethod === "location" && bookingDate
+      ? new Date(`${bookingDate}T00:00:00`).toLocaleDateString("en-CA", { timeZone: TZ })
+      : undefined;
+
     // Create booking
     const booking = await Booking.create({
       firstName,
@@ -205,6 +212,7 @@ export async function POST(request: NextRequest) {
       colorName: color?.name,
       serviceMethod,
       bookingDate: serviceMethod === "location" ? new Date(bookingDate) : undefined,
+      bookingDateKey,
       bookingTimeSlot: serviceMethod === "location" ? bookingTimeSlot : undefined,
       shippingAddress: serviceMethod === "pickup" ? shippingAddress : undefined,
       repairs,
