@@ -142,9 +142,11 @@ export function TermsOfServiceModal({ children }: TermsOfServiceModalProps) {
               <div className="text-muted-foreground">
                 <p>For questions about these Terms of Service, contact us:</p>
                 <div className="mt-2">
-                  <p>Email: legal@fotgmobile.com</p>
-                  <p>Phone: (727) 657-8390</p>
-                  <p>Address: 123 Main St, Saint Petersburg, FL 33701</p>
+                  <p>Email: fotgmobile@gmail.com</p>
+                  <p>Phone: +1 (325) 321-9502</p>
+                  <p>Phone: +1 (214) 656-9700</p>
+                  <p>Address: Dallas, Texas, United States</p>
+
                 </div>
               </div>
             </section>

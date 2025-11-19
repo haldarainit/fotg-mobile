@@ -1933,7 +1933,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                   )}
                                   {isDiscounted && pricing.appliedDiscountRules.length > 0 && (
                                     <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                                      {pricing.appliedDiscountRules[0].name} - Save ${pricing.discount.toFixed(2)}
+                                      {pricing.appliedDiscountRules[0].type === "percentage" ? `${pricing.appliedDiscountRules[0].value}% off` : `$${pricing.appliedDiscountRules[0].value} off`}
                                     </Badge>
                                   )}
                                 </div>
@@ -2126,34 +2126,11 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             <p className="font-semibold">${pricing.subtotal.toFixed(2)}</p>
                           </div>
 
-                          {pricing.appliedDiscountRules && pricing.appliedDiscountRules.length > 0 && (
-                            <div className="rounded-md border bg-primary/5 p-3 text-sm">
-                              <p className="font-semibold mb-2">Applied Offers</p>
-                              <ul className="space-y-1">
-                                {pricing.appliedDiscountRules.map((r, idx) => (
-                                  <li key={idx} className="flex items-center justify-between">
-                                    <span className="text-muted-foreground">
-                                      {r.name || (r.minRepairs ? `${r.minRepairs}+ repairs` : r.minSubtotal ? `Subtotal ≥ $${r.minSubtotal}` : "Offer")} — {r.type === "percentage" ? `${r.value}% off` : `$${r.value} off`}
-                                    </span>
-                                    <span className="text-green-600">-${r.amount.toFixed(2)}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-
                           {pricing.discount > 0 && (
                             <div className="flex items-center justify-between text-sm">
-                              <p className="text-muted-foreground">
-                                Discount
-                                <span className="ml-1 text-xs">
-                                  {pricing.combinedDiscountPercent > 0 ? `(${pricing.combinedDiscountPercent}%` : "("}
-                                  {pricing.appliedDiscountRules?.some(r => r.type === "fixed") ? `${pricing.combinedDiscountPercent > 0 ? " + " : ""}$${pricing.appliedDiscountRules.filter((r:any)=>r.type==="fixed").reduce((s:number,r:any)=>s+r.amount,0).toFixed(2)}` : ""}
-                                  )
-                                </span>
-                              </p>
+                              <p className="text-muted-foreground">Discount</p>
                               <p className="text-green-600 font-semibold">
-                                -${pricing.discount.toFixed(2)}
+                                (-${pricing.discount.toFixed(2)})
                               </p>
                             </div>
                           )}
@@ -2684,7 +2661,9 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                   </p>
                                   {isDiscounted && pricing.appliedDiscountRules.length > 0 && (
                                     <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                                      {pricing.appliedDiscountRules[0].name} - Save ${pricing.discount.toFixed(2)}
+                                      {pricing.appliedDiscountRules[0].type === "percentage" 
+                                        ? `${pricing.appliedDiscountRules[0].value}% off`
+                                        : `$${pricing.appliedDiscountRules[0].value} off`}
                                     </Badge>
                                   )}
                                 </div>
@@ -2767,36 +2746,6 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                               <p className="text-muted-foreground">Subtotal</p>
                               <p className="font-semibold">${pricing.subtotal.toFixed(2)}</p>
                             </div>
-
-                            {pricing.appliedDiscountRules && pricing.appliedDiscountRules.length > 0 && (
-                              <div className="rounded-md border bg-primary/5 p-3 text-sm">
-                                <p className="font-semibold mb-2">Applied Offers</p>
-                                <ul className="space-y-1">
-                                  {pricing.appliedDiscountRules.map((r, idx) => (
-                                    <li key={idx} className="flex items-center justify-between">
-                                      <span className="text-muted-foreground">
-                                        {r.name || (r.minRepairs ? `${r.minRepairs}+ repairs` : r.minSubtotal ? `Subtotal ≥ $${r.minSubtotal}` : "Offer")} — {r.type === "percentage" ? `${r.value}% off` : `$${r.value} off`}
-                                      </span>
-                                      <span className="text-green-600">-${r.amount.toFixed(2)}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
-                            {pricing.discount > 0 && (
-                              <div className="flex items-center justify-between text-sm">
-                                <p className="text-muted-foreground">
-                                  Discount
-                                  <span className="ml-1 text-xs">
-                                    {pricing.combinedDiscountPercent > 0 ? `(${pricing.combinedDiscountPercent}%` : "("}
-                                    {pricing.appliedDiscountRules?.some(r => r.type === "fixed") ? `${pricing.combinedDiscountPercent > 0 ? " + " : ""}$${pricing.appliedDiscountRules.filter((r:any)=>r.type==="fixed").reduce((s:number,r:any)=>s+r.amount,0).toFixed(2)}` : ""}
-                                    )
-                                  </span>
-                                </p>
-                                <p className="text-green-600 font-semibold">-${pricing.discount.toFixed(2)}</p>
-                              </div>
-                            )}
 
                             {pricing.taxPercentage > 0 && includeTax && (
                               <div className="flex items-center justify-between text-sm">

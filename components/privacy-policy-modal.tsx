@@ -108,9 +108,11 @@ export function PrivacyPolicyModal({ children }: PrivacyPolicyModalProps) {
                 If you have any questions about this Privacy Policy, please contact us at:
               </p>
               <div className="mt-2 text-muted-foreground">
-                <p>Email: privacy@fotgmobile.com</p>
-                <p>Phone: (727) 657-8390</p>
-                <p>Address: 123 Main St, Saint Petersburg, FL 33701</p>
+                <p>Email: fotgmobile@gmail.com</p>
+                <p>Phone: +1 (325) 321-9502</p>
+                <p>Phone: +1 (214) 656-9700</p>
+                <p>Address: Dallas, Texas, United States</p>
+
               </div>
             </section>
           </div>
