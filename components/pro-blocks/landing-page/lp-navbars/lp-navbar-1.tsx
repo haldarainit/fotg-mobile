@@ -93,7 +93,7 @@ export function LpNavbar1() {
         {isMenuOpen && (
           <div className="flex w-full flex-col justify-end gap-5 pb-2.5 lg:hidden">
             <NavMenuItems />
-            <Link href="/get-in-touch">
+            <Link href="/contact-us">
               <Button className="w-full">Get In Touch</Button>
             </Link>
             {/* {!isLoading && (

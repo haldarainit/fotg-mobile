@@ -119,8 +119,11 @@ function GetAQuotePageContent() {
 
   // Helper function to check if a time slot is in the past
   const isTimeSlotPast = (date: Date, timeString: string): boolean => {
+    const TZ = process.env.TIMEZONE || "America/Chicago";
+    
+    // Get current time in configured timezone
     const now = new Date();
-    const slotDate = new Date(date);
+    const nowInTZ = new Date(now.toLocaleString("en-CA", { timeZone: TZ }));
     
     // Parse time string (format: "HH:MM AM/PM")
     const timeMatch = timeString.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -137,9 +140,12 @@ function GetAQuotePageContent() {
       hours = 0;
     }
     
+    // Set time on the date and convert to timezone
+    const slotDate = new Date(date);
     slotDate.setHours(hours, minutes, 0, 0);
+    const slotInTZ = new Date(slotDate.toLocaleString("en-CA", { timeZone: TZ }));
     
-    return slotDate < now;
+    return slotInTZ < nowInTZ;
   };
 
   // Shipping address for pickup service
