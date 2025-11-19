@@ -53,6 +53,7 @@ interface Booking {
     country: string;
   };
   repairs: Array<{
+    repairId?: string;
     repairName: string;
     price: number;
     duration: string;
@@ -69,6 +70,17 @@ interface Booking {
     taxPercentage: number;
     includeTax?: boolean;
     total: number;
+    discountedRepairs?: Array<{
+      repairId: string;
+      originalPrice: number;
+      discountAmount: number;
+      finalPrice: number;
+      appliedRules: Array<{
+        type: string;
+        value?: number;
+        amount?: number;
+      }>;
+    }>;
   };
   notes?: string;
   status: "pending" | "confirmed" | "in-progress" | "completed" | "cancelled";
@@ -156,6 +168,17 @@ export function BookingsTable() {
     }
   };
 
+  // Revert a booking to the "pending" status
+  const revertToPending = async (bookingId: string) => {
+    if (!bookingId) return;
+    try {
+      await updateBookingStatus(bookingId, "pending");
+    } catch (error) {
+      console.error("Error reverting booking to pending:", error);
+      toast.error("Failed to revert booking to pending");
+    }
+  };
+
   const deleteBooking = async (bookingId: string) => {
     if (!confirm("Are you sure you want to delete this booking?")) return;
 
@@ -177,9 +200,8 @@ export function BookingsTable() {
     }
   };
 
-  const revertToPending = async (bookingId: string) => {
-    if (!confirm("Revert this booking to Pending status?")) return;
-    await updateBookingStatus(bookingId, "pending");
+  const handleDeleteBooking = (bookingId: string) => {
+    deleteBooking(bookingId);
   };
 
   const getStatusBadgeVariant = (status: string) => {
@@ -347,16 +369,26 @@ export function BookingsTable() {
                     {formatDateTime(booking.createdAt)}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSelectedBooking(booking);
-                        setShowDetailsDialog(true);
-                      }}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedBooking(booking);
+                          setShowDetailsDialog(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteBooking(booking._id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
                 );
@@ -502,14 +534,18 @@ export function BookingsTable() {
                           )}
                           {discountInfo && discountInfo.discountAmount > 0 && (
                             <div className="mt-1">
-                              <p className="text-xs text-muted-foreground">
-                                Original: <span className="line-through">${(repair.price + discountInfo.discountAmount).toFixed(2)}</span>
-                              </p>
-                              <p className="text-xs text-green-600 font-medium">
-                                {discountInfo.appliedRules.map((rule: any) => 
-                                  rule.type === "percentage" ? `${rule.value}% off` : `$${rule.amount.toFixed(2)} off`
-                                ).join(", ")}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm line-through text-muted-foreground">
+                                  Original: ${discountInfo.originalPrice.toFixed(2)}
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                  {discountInfo.appliedRules.map((rule: any, idx: number) => (
+                                    <Badge key={idx} variant="secondary" className="text-xs bg-green-100 text-green-800">
+                                      {rule.type === "percentage" ? `${rule.value}% off` : `$${rule.amount.toFixed(2)} off`}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
                           )}
                           <p className="text-xs text-muted-foreground mt-1">{repair.duration}</p>
@@ -517,6 +553,9 @@ export function BookingsTable() {
                         <div className="text-right">
                           {discountInfo && discountInfo.discountAmount > 0 ? (
                             <div>
+                              <p className="text-sm line-through text-muted-foreground">
+                                ${discountInfo.originalPrice.toFixed(2)}
+                              </p>
                               <p className="font-semibold text-green-600">${repair.price.toFixed(2)}</p>
                               <p className="text-xs text-muted-foreground">Saved: ${(discountInfo.discountAmount).toFixed(2)}</p>
                             </div>

@@ -35,7 +35,7 @@ export interface IBooking extends Document {
   
   // Repairs
   repairs: Array<{
-    repairId: string;
+    repairId?: string;
     repairName: string;
     price: number;
     duration: string;
