@@ -2027,7 +2027,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 </p>
                                 {isDiscounted && pricing.appliedDiscountRules.length > 0 && (
                                   <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                                    {pricing.appliedDiscountRules[0].name} - Save ${pricing.discount.toFixed(2)}
+                                    {pricing.appliedDiscountRules[0].type === "percentage" ? `${pricing.appliedDiscountRules[0].value}% off` : `$${pricing.appliedDiscountRules[0].value} off`}
                                   </Badge>
                                 )}
                               </div>
@@ -2128,7 +2128,9 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
 
                           {pricing.discount > 0 && (
                             <div className="flex items-center justify-between text-sm">
-                              <p className="text-muted-foreground">Discount</p>
+                              <p className="text-muted-foreground">
+                                Discount ({pricing.appliedDiscountRules[0].type === "percentage" ? `${pricing.appliedDiscountRules[0].value}%` : `$${pricing.appliedDiscountRules[0].value}`})
+                              </p>
                               <p className="text-green-600 font-semibold">
                                 (-${pricing.discount.toFixed(2)})
                               </p>
@@ -2765,7 +2767,9 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 <p className="text-xs text-muted-foreground mt-1">Excl. {pricing.taxPercentage}% tax</p>
                               )}
                               {pricing.discount > 0 && (
-                                <p className="text-xs text-green-600 mt-1">You saved ${pricing.discount.toFixed(2)}!</p>
+                                <p className="text-xs text-green-600 mt-1">
+                                  You saved {pricing.appliedDiscountRules[0].type === "percentage" ? `${pricing.appliedDiscountRules[0].value}%` : `$${pricing.appliedDiscountRules[0].value}`}!
+                                </p>
                               )}
                             </div>
                           </>
