@@ -42,6 +42,7 @@ import {
   Info,
   Calendar,
   Truck,
+  RotateCcw,
 } from "lucide-react";
 import { LpNavbar1 } from "@/components/pro-blocks/landing-page/lp-navbars/lp-navbar-1";
 import { Footer1 } from "@/components/pro-blocks/landing-page/footers/footer-1";
@@ -145,6 +146,33 @@ function GetAQuotePageContent() {
     const slotDateInCentral = new Date(new Date(slotDateTimeStr).toLocaleString("en-US", { timeZone: TZ }));
     
     return slotDateInCentral < nowInCentral;
+  };
+
+  // Function to fetch available time slots
+  const fetchAvailableSlots = async (date?: Date) => {
+    const targetDate = date || bookingDate;
+    if (!targetDate || serviceMethod !== "location") {
+      setAvailableSlots([]);
+      return;
+    }
+
+    setIsLoadingSlots(true);
+    try {
+      // Format date in US Central timezone (YYYY-MM-DD)
+      const TZ = "America/Chicago";
+      const dateStr = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(targetDate);
+      const response = await fetch(`/api/bookings?date=${dateStr}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Use allSlots which includes availability status for each slot
+        setAvailableSlots(data.data.allSlots || []);
+      }
+    } catch (error) {
+      console.error("Error fetching available slots:", error);
+      setAvailableSlots([]);
+    } finally {
+      setIsLoadingSlots(false);
+    }
   };
 
   // Shipping address for pickup service
@@ -469,31 +497,6 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
 
   // Fetch available time slots when date is selected
   useEffect(() => {
-    const fetchAvailableSlots = async () => {
-      if (!bookingDate || serviceMethod !== "location") {
-        setAvailableSlots([]);
-        return;
-      }
-
-      setIsLoadingSlots(true);
-      try {
-        // Format date in US Central timezone (YYYY-MM-DD)
-        const TZ = "America/Chicago";
-        const dateStr = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(bookingDate);
-        const response = await fetch(`/api/bookings?date=${dateStr}`);
-        if (response.ok) {
-          const data = await response.json();
-          // Use allSlots which includes availability status for each slot
-          setAvailableSlots(data.data.allSlots || []);
-        }
-      } catch (error) {
-        console.error("Error fetching available slots:", error);
-        setAvailableSlots([]);
-      } finally {
-        setIsLoadingSlots(false);
-      }
-    };
-
     fetchAvailableSlots();
   }, [bookingDate, serviceMethod]);
 
@@ -2246,20 +2249,13 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             const now = new Date();
                             return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now);
                           })()}
-                          value={bookingDate ? (() => {
-                            const TZ = "America/Chicago";
-                            return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(bookingDate);
-                          })() : ""}
+                          value={bookingDate ? bookingDate.toISOString().split('T')[0] : ""}
                           onChange={(e) => {
                             if (e.target.value) {
-                              // Interpret the selected date as a US Central Time date
-                              const TZ = "America/Chicago";
-                              const selectedDateStr = e.target.value; // YYYY-MM-DD format
-                              // Create a date object representing this date at noon in US Central Time
-                              const dateInTZ = new Date(selectedDateStr + 'T12:00:00');
-                              // Convert to local time for storage
-                              const localDate = new Date(dateInTZ.toLocaleString("en-US", { timeZone: TZ }));
-                              setBookingDate(localDate);
+                              // Create a date object from the selected date string (YYYY-MM-DD)
+                              // This will be interpreted as local time, which is what we want
+                              const selectedDate = new Date(e.target.value + 'T12:00:00');
+                              setBookingDate(selectedDate);
                             } else {
                               setBookingDate(null);
                             }
@@ -2271,9 +2267,22 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
 
                       {bookingDate && (
                         <div className="space-y-2">
-                          <Label>
-                            Select Time Slot <span className="text-red-500">*</span>
-                          </Label>
+                          <div className="flex items-center justify-between">
+                            <Label>
+                              Select Time Slot <span className="text-red-500">*</span>
+                            </Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => fetchAvailableSlots()}
+                              disabled={isLoadingSlots}
+                              className="flex items-center gap-2"
+                            >
+                              <RotateCcw className={`h-4 w-4 ${isLoadingSlots ? 'animate-spin' : ''}`} />
+                              Refresh
+                            </Button>
+                          </div>
                           {isLoadingSlots ? (
                             <div className="text-sm text-muted-foreground">Loading available slots...</div>
                           ) : availableSlots.length === 0 ? (

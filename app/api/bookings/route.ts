@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const dateKey = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(bookingDate + 'T12:00:00'));
+      const dateKey = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(bookingDate));
       const startOfDayFallback = new Date(bookingDate);
       startOfDayFallback.setHours(0, 0, 0, 0);
       const endOfDayFallback = new Date(bookingDate);
@@ -217,7 +217,7 @@ export async function POST(request: NextRequest) {
 
     // Create booking (include timezone-aware date key)
     const bookingDateKey = serviceMethod === "location" && bookingDate
-      ? new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(bookingDate + 'T12:00:00'))
+      ? new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date(bookingDate))
       : undefined;
 
     // Create booking
