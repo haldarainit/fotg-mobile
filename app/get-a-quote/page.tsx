@@ -2295,7 +2295,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             <RadioGroup
                               value={bookingTimeSlot}
                               onValueChange={setBookingTimeSlot}
-                              className="grid grid-cols-2 gap-2"
+                              className="grid grid-cols-1 sm:grid-cols-2 gap-2"
                             >
                               {availableSlots.map((slot) => {
                                 // Use isPast from backend (already calculated in US Central time)
@@ -2305,7 +2305,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 return (
                                   <label
                                     key={slot.id}
-                                    className={`flex items-center gap-2 p-3 border-2 rounded-lg text-sm transition-all ${
+                                    className={`flex items-center justify-between gap-2 p-3 border-2 rounded-lg text-sm transition-all ${
                                       isDisabled
                                         ? "border-red-300 bg-red-50 cursor-not-allowed opacity-60"
                                         : bookingTimeSlot === slot.label
@@ -2313,21 +2313,25 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                         : "hover:border-primary/50 cursor-pointer"
                                     }`}
                                   >
-                                    <RadioGroupItem
-                                      value={slot.label}
-                                      disabled={isDisabled}
-                                    />
-                                    <span className="flex-1">{slot.label}</span>
-                                    {slot.isBooked && (
-                                      <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-1 rounded">
-                                        BOOKED
-                                      </span>
-                                    )}
-                                    {isPast && !slot.isBooked && (
-                                      <span className="text-xs text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
-                                        PAST
-                                      </span>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                      <RadioGroupItem
+                                        value={slot.label}
+                                        disabled={isDisabled}
+                                      />
+                                      <span className="font-medium">{slot.label}</span>
+                                    </div>
+                                    <div className="flex gap-1">
+                                      {slot.isBooked && (
+                                        <span className="text-xs text-red-600 font-medium bg-red-100 px-2 py-1 rounded">
+                                          BOOKED
+                                        </span>
+                                      )}
+                                      {isPast && !slot.isBooked && (
+                                        <span className="text-xs text-gray-600 font-medium bg-gray-100 px-2 py-1 rounded">
+                                          PAST
+                                        </span>
+                                      )}
+                                    </div>
                                   </label>
                                 );
                               })}
