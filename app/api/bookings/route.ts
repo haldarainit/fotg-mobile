@@ -78,11 +78,34 @@ export async function GET(request: NextRequest) {
     // Get booked time slots (using the slot label as identifier)
     const bookedSlots = bookings.map((booking) => booking.bookingTimeSlot).filter(Boolean);
 
+    // Helper function to check if a time slot is in the past or currently in progress (using US Central timezone)
+    const isTimeSlotPast = (date: string, slot: any): boolean => {
+      // Get current time in US Central timezone
+      const now = new Date();
+      const nowInTZ = new Date(now.toLocaleString("en-US", { timeZone: TZ }));
+      
+      // Parse start and end times (format: "HH:MM")
+      const [startHour, startMinute] = slot.startTime.split(':').map(Number);
+      const [endHour, endMinute] = slot.endTime.split(':').map(Number);
+      
+      // Create start and end Date objects for the slot in US Central timezone
+      const slotStartDateTimeStr = `${date}T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00`;
+      const slotEndDateTimeStr = `${date}T${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`;
+      
+      const slotStartInTZ = new Date(new Date(slotStartDateTimeStr).toLocaleString("en-US", { timeZone: TZ }));
+      const slotEndInTZ = new Date(new Date(slotEndDateTimeStr).toLocaleString("en-US", { timeZone: TZ }));
+      
+      // A slot is past if current time is at or after the slot start time
+      // This means slots that have started (in progress or completed) are considered past/unavailable
+      return nowInTZ >= slotStartInTZ;
+    };
+
     // Create slots with availability status
     const allSlotsWithAvailability = activeSlots.map((slot: any) => ({
       ...slot,
       isAvailable: !bookedSlots.includes(slot.label),
       isBooked: bookedSlots.includes(slot.label),
+      isPast: isTimeSlotPast(date, slot),
     }));
 
     // Filter out booked slots to get available slots (for backward compatibility)
@@ -111,6 +134,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
+    const TZ = process.env.TIMEZONE || "America/Chicago";
 
     const body = await request.json();
     const {

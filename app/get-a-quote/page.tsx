@@ -114,16 +114,15 @@ function GetAQuotePageContent() {
   // Booking state for location service
   const [bookingDate, setBookingDate] = useState<Date | null>(null);
   const [bookingTimeSlot, setBookingTimeSlot] = useState("");
-  const [availableSlots, setAvailableSlots] = useState<Array<{id: string, label: string, startTime: string, endTime: string, active: boolean, isAvailable: boolean, isBooked: boolean}>>([]);
+  const [availableSlots, setAvailableSlots] = useState<Array<{id: string, label: string, startTime: string, endTime: string, active: boolean, isAvailable: boolean, isBooked: boolean, isPast?: boolean}>>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
-  // Helper function to check if a time slot is in the past
+  // Helper function to check if a time slot is in the past (using US Central timezone)
   const isTimeSlotPast = (date: Date, timeString: string): boolean => {
-    const TZ = process.env.TIMEZONE || "America/Chicago";
+    const TZ = "America/Chicago";
     
-    // Get current time in configured timezone
-    const now = new Date();
-    const nowInTZ = new Date(now.toLocaleString("en-CA", { timeZone: TZ }));
+    // Get current time in US Central timezone
+    const nowInCentral = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
     
     // Parse time string (format: "HH:MM AM/PM")
     const timeMatch = timeString.match(/(\d+):(\d+)\s*(AM|PM)/i);
@@ -140,12 +139,12 @@ function GetAQuotePageContent() {
       hours = 0;
     }
     
-    // Set time on the date and convert to timezone
-    const slotDate = new Date(date);
-    slotDate.setHours(hours, minutes, 0, 0);
-    const slotInTZ = new Date(slotDate.toLocaleString("en-CA", { timeZone: TZ }));
+    // Create the slot time in US Central timezone
+    const dateStr = date.toLocaleDateString("en-CA"); // YYYY-MM-DD
+    const slotDateTimeStr = `${dateStr}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
+    const slotDateInCentral = new Date(new Date(slotDateTimeStr).toLocaleString("en-US", { timeZone: TZ }));
     
-    return slotInTZ < nowInTZ;
+    return slotDateInCentral < nowInCentral;
   };
 
   // Shipping address for pickup service
@@ -478,7 +477,9 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
 
       setIsLoadingSlots(true);
       try {
-        const dateStr = bookingDate.toISOString().split("T")[0];
+        // Format date in US Central timezone (YYYY-MM-DD)
+        const TZ = "America/Chicago";
+        const dateStr = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(bookingDate);
         const response = await fetch(`/api/bookings?date=${dateStr}`);
         if (response.ok) {
           const data = await response.json();
@@ -2210,10 +2211,28 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                         </Label>
                         <Input
                           type="date"
-                          min={new Date().toISOString().split("T")[0]}
-                          value={bookingDate ? bookingDate.toISOString().split("T")[0] : ""}
+                          min={(() => {
+                            const TZ = "America/Chicago";
+                            const now = new Date();
+                            return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(now);
+                          })()}
+                          value={bookingDate ? (() => {
+                            const TZ = "America/Chicago";
+                            return new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(bookingDate);
+                          })() : ""}
                           onChange={(e) => {
-                            setBookingDate(e.target.value ? new Date(e.target.value) : null);
+                            if (e.target.value) {
+                              // Interpret the selected date as a US Central Time date
+                              const TZ = "America/Chicago";
+                              const selectedDateStr = e.target.value; // YYYY-MM-DD format
+                              // Create a date object representing this date at noon in US Central Time
+                              const dateInTZ = new Date(selectedDateStr + 'T12:00:00');
+                              // Convert to local time for storage
+                              const localDate = new Date(dateInTZ.toLocaleString("en-US", { timeZone: TZ }));
+                              setBookingDate(localDate);
+                            } else {
+                              setBookingDate(null);
+                            }
                             setBookingTimeSlot(""); // Reset time slot when date changes
                           }}
                           required
@@ -2240,7 +2259,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                               className="grid grid-cols-2 gap-2"
                             >
                               {availableSlots.map((slot) => {
-                                const isPast = isTimeSlotPast(bookingDate, slot.label);
+                                // Use isPast from backend (already calculated in US Central time)
+                                const isPast = slot.isPast || false;
                                 const isDisabled = slot.isBooked || isPast;
                                 
                                 return (
