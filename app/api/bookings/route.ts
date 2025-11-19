@@ -78,26 +78,41 @@ export async function GET(request: NextRequest) {
     // Get booked time slots (using the slot label as identifier)
     const bookedSlots = bookings.map((booking) => booking.bookingTimeSlot).filter(Boolean);
 
-    // Helper function to check if a time slot is in the past or currently in progress (using US Central timezone)
-    const isTimeSlotPast = (date: string, slot: any): boolean => {
-      // Get current time in US Central timezone
+    // Helper function to check if a time slot is in the past or currently in progress (using configured timezone)
+    // This uses Intl.formatToParts to get the current date/time components in the target timezone
+    // and compares wall-clock values (avoids parsing/UTC conversion issues).
+    const isTimeSlotPast = (dateStr: string, slot: any): boolean => {
+      // Get current time components in the target timezone
       const now = new Date();
-      const nowInTZ = new Date(now.toLocaleString("en-US", { timeZone: TZ }));
-      
-      // Parse start and end times (format: "HH:MM")
-      const [startHour, startMinute] = slot.startTime.split(':').map(Number);
-      const [endHour, endMinute] = slot.endTime.split(':').map(Number);
-      
-      // Create start and end Date objects for the slot in US Central timezone
-      const slotStartDateTimeStr = `${date}T${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')}:00`;
-      const slotEndDateTimeStr = `${date}T${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`;
-      
-      const slotStartInTZ = new Date(new Date(slotStartDateTimeStr).toLocaleString("en-US", { timeZone: TZ }));
-      const slotEndInTZ = new Date(new Date(slotEndDateTimeStr).toLocaleString("en-US", { timeZone: TZ }));
-      
-      // A slot is past if current time is at or after the slot start time
-      // This means slots that have started (in progress or completed) are considered past/unavailable
-      return nowInTZ >= slotStartInTZ;
+      const fmt = new Intl.DateTimeFormat("en-CA", {
+        timeZone: TZ,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+
+      const parts = fmt.formatToParts(now).reduce((acc: any, p) => {
+        if (p.type !== "literal") acc[p.type] = p.value;
+        return acc;
+      }, {});
+
+      const nowDateKey = `${parts.year}-${parts.month}-${parts.day}`; // YYYY-MM-DD
+      const nowHour = Number(parts.hour || 0);
+      const nowMinute = Number(parts.minute || 0);
+
+      // If the date is before today in the TZ, it's past; if after today it's future
+      if (dateStr < nowDateKey) return true;
+      if (dateStr > nowDateKey) return false;
+
+      // Same day: compare the slot's start time to current time in TZ
+      const [startHour, startMinute] = slot.startTime.split(":").map(Number);
+      if (nowHour > startHour) return true;
+      if (nowHour < startHour) return false;
+      // same hour: slot is past if current minutes >= start minutes
+      return nowMinute >= startMinute;
     };
 
     // Create slots with availability status
