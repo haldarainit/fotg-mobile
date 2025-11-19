@@ -489,20 +489,44 @@ export function BookingsTable() {
               <div>
                 <h3 className="font-semibold mb-3">Repairs</h3>
                 <div className="space-y-2">
-                  {selectedBooking.repairs.map((repair, index) => (
-                    <div key={index} className="flex justify-between text-sm p-2 bg-muted/30 rounded">
-                      <div>
-                        <p className="font-medium">{repair.repairName}</p>
-                        {repair.partQuality && (
-                          <p className="text-xs text-muted-foreground">
-                            {repair.partQuality.name}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground">{repair.duration}</p>
+                  {selectedBooking.repairs.map((repair, index) => {
+                    const discountInfo = selectedBooking.pricing.discountedRepairs?.find((d: any) => d.repairId === repair.repairId);
+                    return (
+                      <div key={index} className="flex justify-between text-sm p-2 bg-muted/30 rounded">
+                        <div className="flex-1">
+                          <p className="font-medium">{repair.repairName}</p>
+                          {repair.partQuality && (
+                            <p className="text-xs text-muted-foreground">
+                              {repair.partQuality.name}
+                            </p>
+                          )}
+                          {discountInfo && discountInfo.discountAmount > 0 && (
+                            <div className="mt-1">
+                              <p className="text-xs text-muted-foreground">
+                                Original: <span className="line-through">${(repair.price + discountInfo.discountAmount).toFixed(2)}</span>
+                              </p>
+                              <p className="text-xs text-green-600 font-medium">
+                                {discountInfo.appliedRules.map((rule: any) => 
+                                  rule.type === "percentage" ? `${rule.value}% off` : `$${rule.amount.toFixed(2)} off`
+                                ).join(", ")}
+                              </p>
+                            </div>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">{repair.duration}</p>
+                        </div>
+                        <div className="text-right">
+                          {discountInfo && discountInfo.discountAmount > 0 ? (
+                            <div>
+                              <p className="font-semibold text-green-600">${repair.price.toFixed(2)}</p>
+                              <p className="text-xs text-muted-foreground">Saved: ${(discountInfo.discountAmount).toFixed(2)}</p>
+                            </div>
+                          ) : (
+                            <p className="font-semibold">${repair.price.toFixed(2)}</p>
+                          )}
+                        </div>
                       </div>
-                      <p className="font-semibold">${repair.price.toFixed(2)}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -514,17 +538,6 @@ export function BookingsTable() {
                     <span className="text-muted-foreground">Subtotal:</span>
                     <span>${selectedBooking.pricing.subtotal.toFixed(2)}</span>
                   </div>
-                  {selectedBooking.pricing.discount > 0 && (
-                    <div className="flex justify-between text-green-600">
-                      <span>
-                        Discount
-                        {selectedBooking.pricing.discountRuleName && (
-                          <span className="text-xs"> ({selectedBooking.pricing.discountRuleName})</span>
-                        )}:
-                      </span>
-                      <span>-${selectedBooking.pricing.discount.toFixed(2)}</span>
-                    </div>
-                  )}
                   {selectedBooking.pricing.tax > 0 && (
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">
@@ -536,7 +549,7 @@ export function BookingsTable() {
                   {selectedBooking.pricing.taxPercentage > 0 && selectedBooking.pricing.includeTax === false && (
                     <div className="flex justify-between text-orange-600">
                       <span>Tax Excluded:</span>
-                      <span>${(selectedBooking.pricing.subtotal - selectedBooking.pricing.discount) * (selectedBooking.pricing.taxPercentage / 100).toFixed(2)}</span>
+                      <span>${(selectedBooking.pricing.subtotal * (selectedBooking.pricing.taxPercentage / 100)).toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-lg border-t pt-2">

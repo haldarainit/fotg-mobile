@@ -48,12 +48,23 @@ export interface IBooking extends Document {
   // Pricing
   pricing: {
     subtotal: number;
-    discount: number;
+    discount: number; // Now always 0 since discounts are applied to individual repairs
     discountRuleName?: string;
     tax: number;
     taxPercentage: number;
     includeTax: boolean;
     total: number;
+    discountedRepairs?: Array<{
+      repairId: string;
+      originalPrice: number;
+      discountAmount: number;
+      finalPrice: number;
+      appliedRules: Array<{
+        type: string;
+        value?: number;
+        amount?: number;
+      }>;
+    }>;
   };
   
   // Additional

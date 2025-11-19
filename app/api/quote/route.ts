@@ -231,7 +231,15 @@ export async function POST(request: NextRequest) {
     const repairsList = (normalizedRepairs || [])
       .map((repair: any) => {
         const qualityLabel = repair.partQuality && repair.partQuality.name ? ` <strong>(${repair.partQuality.name})</strong>` : "";
-        return `<li>${repair.repairName}${qualityLabel} - $${repair.price} (${repair.duration})</li>`;
+        const discountInfo = pricing?.discountedRepairs?.find((d: any) => d.repairId === repair.repairId);
+        if (discountInfo && discountInfo.discountAmount > 0) {
+          const discountText = discountInfo.appliedRules.map((rule: any) => 
+            rule.type === "percentage" ? `${rule.value}% off` : `$${rule.amount.toFixed(2)} off`
+          ).join(", ");
+          return `<li>${repair.repairName}${qualityLabel} - <span style="text-decoration: line-through; color: #999;">$${discountInfo.originalPrice.toFixed(2)}</span> <span style="color: #4ade80; font-weight: bold;">$${repair.price.toFixed(2)}</span> <span style="color: #f59e0b; font-size: 12px;">(${discountText})</span> (${repair.duration})</li>`;
+        } else {
+          return `<li>${repair.repairName}${qualityLabel} - $${repair.price.toFixed(2)} (${repair.duration})</li>`;
+        }
       })
       .join("");
 
@@ -352,16 +360,6 @@ export async function POST(request: NextRequest) {
                   <span style="font-weight: bold;">$${pricing.subtotal.toFixed(2)}</span>
                 </div>
                 ${
-                  pricing.discount > 0
-                    ? `
-                <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.3);">
-                  <span style="color: rgba(255,255,255,0.9);">Discount ${pricing.discountRuleName ? `(${pricing.discountRuleName})` : ""}:</span>
-                  <span style="font-weight: bold; color: #4ade80;">-$${pricing.discount.toFixed(2)}</span>
-                </div>
-                `
-                    : ""
-                }
-                ${
                   pricing.taxPercentage > 0
                     ? `
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.3);">
@@ -376,7 +374,7 @@ export async function POST(request: NextRequest) {
                     ? `
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.3);">
                   <span style="color: rgba(255,255,255,0.9);">Tax Excluded:</span>
-                  <span style="font-weight: bold; color: #f59e0b;">$${((pricing.subtotal - pricing.discount) * (pricing.taxPercentage / 100)).toFixed(2)}</span>
+                  <span style="font-weight: bold; color: #f59e0b;">$${(pricing.subtotal * (pricing.taxPercentage / 100)).toFixed(2)}</span>
                 </div>
                 `
                     : ""
@@ -494,13 +492,35 @@ Submission time: ${new Date().toLocaleString()}
 
           <h3 style="color:#333;margin:30px 0 15px 0;">Repairs</h3>
           <div style="background:#f8f9fa;padding:15px;border-radius:6px;">
-            ${normalizedRepairs.map((repair: any) => `
-              <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-                <span>${repair.repairName} ${repair.partQuality ? `(${repair.partQuality.name})` : ''}</span>
-                <span style="font-weight:bold;">$${repair.price.toFixed(2)}</span>
-              </div>
-              <div style="color:#666;font-size:14px;margin-bottom:12px;">Duration: ${repair.duration}</div>
-            `).join('')}
+            ${normalizedRepairs.map((repair: any) => {
+              const discountInfo = pricing?.discountedRepairs?.find((d: any) => d.repairId === repair.repairId);
+              if (discountInfo && discountInfo.discountAmount > 0) {
+                const discountText = discountInfo.appliedRules.map((rule: any) => 
+                  rule.type === "percentage" ? `${rule.value}% off` : `$${rule.amount.toFixed(2)} off`
+                ).join(", ");
+                return `
+                  <div style="margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                      <span>${repair.repairName} ${repair.partQuality ? `(${repair.partQuality.name})` : ''}</span>
+                      <div style="text-align:right;">
+                        <span style="text-decoration:line-through;color:#999;font-size:14px;">$${discountInfo.originalPrice.toFixed(2)}</span>
+                        <span style="font-weight:bold;color:#059669;margin-left:8px;">$${repair.price.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div style="color:#f59e0b;font-size:12px;margin-bottom:4px;">${discountText}</div>
+                    <div style="color:#666;font-size:14px;">Duration: ${repair.duration}</div>
+                  </div>
+                `;
+              } else {
+                return `
+                  <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                    <span>${repair.repairName} ${repair.partQuality ? `(${repair.partQuality.name})` : ''}</span>
+                    <span style="font-weight:bold;">$${repair.price.toFixed(2)}</span>
+                  </div>
+                  <div style="color:#666;font-size:14px;margin-bottom:12px;">Duration: ${repair.duration}</div>
+                `;
+              }
+            }).join('')}
           </div>
 
           <h3 style="color:#333;margin:30px 0 15px 0;">Pricing Summary</h3>
@@ -509,12 +529,6 @@ Submission time: ${new Date().toLocaleString()}
               <span>Subtotal:</span>
               <span>$${pricing.subtotal.toFixed(2)}</span>
             </div>
-            ${pricing.discount > 0 ? `
-              <div style="display:flex;justify-content:space-between;margin-bottom:8px;color:#059669;">
-                <span>Discount${pricing.discountRuleName ? ` (${pricing.discountRuleName})` : ''}:</span>
-                <span>-$${pricing.discount.toFixed(2)}</span>
-              </div>
-            ` : ''}
             ${pricing.tax > 0 ? `
               <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
                 <span>Tax (${pricing.taxPercentage}%):</span>

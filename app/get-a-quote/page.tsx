@@ -744,7 +744,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
       price: getRepairPrice(repairId),
     }));
 
-    const subtotal = repairPrices.reduce((total, repair) => total + repair.price, 0);
+    const originalSubtotal = repairPrices.reduce((total, repair) => total + repair.price, 0);
 
     // Only apply discounts when 2 or more repairs are selected
     let applicableRules: Array<{
@@ -769,7 +769,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
         }
 
         // Check minimum subtotal requirement (new)
-        if (rule.minSubtotal && subtotal < rule.minSubtotal) {
+        if (rule.minSubtotal && originalSubtotal < rule.minSubtotal) {
           ruleApplies = false;
         }
 
@@ -813,10 +813,12 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
     // Number of repairs to discount
     const numToDiscount = Math.max(0, selectedRepairs.length - 1);
 
-    // Apply discounts to the lowest numToDiscount repairs
+    // Apply discounts to the lowest numToDiscount repairs and calculate discounted prices
     const discountedRepairs: Array<{
       repairId: string;
+      originalPrice: number;
       discountAmount: number;
+      finalPrice: number;
       appliedRules: Array<{
         id?: string;
         name?: string;
@@ -845,20 +847,38 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
       totalDiscount += repairDiscount;
       discountedRepairs.push({
         repairId: repair.id,
+        originalPrice: repair.price,
         discountAmount: repairDiscount,
+        finalPrice: repair.price - repairDiscount,
         appliedRules: appliedToRepair,
       });
     }
 
+    // For repairs that don't get discounts, add them with original price as final price
+    const discountedRepairIds = discountedRepairs.map(d => d.repairId);
+    for (const repair of repairPrices) {
+      if (!discountedRepairIds.includes(repair.id)) {
+        discountedRepairs.push({
+          repairId: repair.id,
+          originalPrice: repair.price,
+          discountAmount: 0,
+          finalPrice: repair.price,
+          appliedRules: [],
+        });
+      }
+    }
+
+    // Calculate subtotal as sum of discounted prices
+    const subtotal = discountedRepairs.reduce((total, repair) => total + repair.finalPrice, 0);
+
     // Calculate tax conditionally
     const taxPercentage = settings?.taxPercentage || 0;
-    const afterDiscount = Math.max(0, subtotal - totalDiscount);
-    const tax = includeTax ? (afterDiscount * taxPercentage) / 100 : 0;
-    const total = afterDiscount + tax;
+    const tax = includeTax ? (subtotal * taxPercentage) / 100 : 0;
+    const total = subtotal + tax;
 
     return {
       subtotal,
-      discount: totalDiscount,
+      discount: 0, // No separate discount field since discounts are applied to individual repairs
       appliedDiscountRules: applicableRules,
       discountedRepairs,
       tax,
@@ -896,13 +916,18 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
           ? qualityOptions.find((q: any) => q.id === quality)
           : null;
 
+        // Get the discounted price from pricing calculation
+        const pricing = calculatePricing();
+        const discountInfo = pricing.discountedRepairs.find(d => d.repairId === repairId);
+        const finalPrice = discountInfo ? discountInfo.finalPrice : getRepairPrice(repairId);
+
         return {
-          id: repair?.id,
-          name: repair?.name,
-          price: getRepairPrice(repairId),
+          repairId: repair?.id,
+          repairName: repair?.name,
+          price: finalPrice, // Use discounted price
           duration: repair?.duration,
           partQuality: selectedQualityOption ? {
-            type: quality,
+            id: quality,
             name: selectedQualityOption.name,
           } : undefined,
         };
@@ -951,6 +976,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
             ? pricing.appliedDiscountRules.map((r: any) => r.name).filter(Boolean).join(" + ")
             : undefined,
           discountRules: pricing.appliedDiscountRules || [],
+          discountedRepairs: pricing.discountedRepairs || [],
           tax: pricing.tax,
           taxPercentage: pricing.taxPercentage,
           includeTax: pricing.includeTax,
@@ -2131,17 +2157,6 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             <p className="text-muted-foreground">Subtotal</p>
                             <p className="font-semibold">${pricing.subtotal.toFixed(2)}</p>
                           </div>
-
-                          {pricing.discount > 0 && (
-                            <div className="flex items-center justify-between text-sm">
-                              <p className="text-muted-foreground">
-                                Discount ({pricing.appliedDiscountRules[0].type === "percentage" ? `${pricing.appliedDiscountRules[0].value}%` : `$${pricing.appliedDiscountRules[0].value}`})
-                              </p>
-                              <p className="text-green-600 font-semibold">
-                                (-${pricing.discount.toFixed(2)})
-                              </p>
-                            </div>
-                          )}
 
                           <div className="flex items-center justify-between text-sm">
                             <div className="flex items-center gap-2">
