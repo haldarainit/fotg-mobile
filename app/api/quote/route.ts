@@ -376,7 +376,7 @@ export async function POST(request: NextRequest) {
                     ? `
                 <div style="display: flex; justify-content: space-between; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.3);">
                   <span style="color: rgba(255,255,255,0.9);">Tax Excluded:</span>
-                  <span style="font-weight: bold; color: #f59e0b;">$${(pricing.subtotal - pricing.discount) * (pricing.taxPercentage / 100).toFixed(2)}</span>
+                  <span style="font-weight: bold; color: #f59e0b;">$${((pricing.subtotal - pricing.discount) * (pricing.taxPercentage / 100)).toFixed(2)}</span>
                 </div>
                 `
                     : ""

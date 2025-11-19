@@ -735,11 +735,21 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
   };
 
   const calculatePricing = () => {
-    const subtotal = selectedRepairs.reduce((total, repairId) => {
-      return total + getRepairPrice(repairId);
-    }, 0);
+    // Calculate individual repair prices
+    const repairPrices = selectedRepairs.map(repairId => ({
+      id: repairId,
+      price: getRepairPrice(repairId),
+    }));
 
-    // Stackable discount logic with categories (repairs/subtotal/specific)
+    const subtotal = repairPrices.reduce((total, repair) => total + repair.price, 0);
+
+    // Find the lowest price repair for discount application
+    const lowestPriceRepair = repairPrices.reduce((lowest, current) =>
+      current.price < lowest.price ? current : lowest,
+      repairPrices[0]
+    );
+
+    // Only apply discounts when 2 or more repairs are selected
     let appliedDiscountRules: Array<{
       id?: string;
       name?: string;
@@ -749,9 +759,10 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
       category: "repairs" | "subtotal" | "generic" | "specific";
       minRepairs?: number;
       minSubtotal?: number;
+      discountedRepairId?: string; // Track which repair gets the discount
     }> = [];
 
-    if (settings && Array.isArray(settings.discountRules)) {
+    if (settings && Array.isArray(settings.discountRules) && selectedRepairs.length >= 2) {
       const candidateRepairs: typeof appliedDiscountRules = [];
       const candidateSubtotal: typeof appliedDiscountRules = [];
       const candidateSpecific: typeof appliedDiscountRules = [];
@@ -794,9 +805,11 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
 
         if (!ruleApplies) continue;
 
+        // Apply discount to the lowest price repair instead of total
+        const discountBase = lowestPriceRepair.price;
         const amount = rule.type === "percentage"
-          ? (subtotal * (Number(rule.value) || 0)) / 100
-          : (Number(rule.value) || 0);
+          ? (discountBase * (Number(rule.value) || 0)) / 100
+          : Math.min(Number(rule.value) || 0, discountBase); // Don't discount more than the repair price
 
         const base = {
           id: (rule as any)._id ?? (rule as any).id,
@@ -806,6 +819,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
           amount,
           minRepairs: rule.minRepairs,
           minSubtotal: (rule as any).minSubtotal,
+          discountedRepairId: lowestPriceRepair.id, // Track which repair gets discounted
         };
 
         if ((rule as any).minSubtotal) {
@@ -831,15 +845,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
       appliedDiscountRules = [bestRepairs, bestSubtotal, bestSpecific, bestGeneric].filter(Boolean) as typeof appliedDiscountRules;
     }
 
-    // Combine discounts: sum of percentages + sum of fixed amounts
-    const percentTotal = appliedDiscountRules
-      .filter((r) => r.type === "percentage")
-      .reduce((sum, r) => sum + (r.value || 0), 0);
-    const fixedTotal = appliedDiscountRules
-      .filter((r) => r.type === "fixed")
-      .reduce((sum, r) => sum + (r.amount || 0), 0);
-
-    const discount = (subtotal * percentTotal) / 100 + fixedTotal;
+    // Calculate total discount (applied to the lowest price repair)
+    const discount = appliedDiscountRules.reduce((sum, rule) => sum + rule.amount, 0);
 
     // Calculate tax conditionally
     const taxPercentage = settings?.taxPercentage || 0;
@@ -852,11 +859,12 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
       discount,
       discountRule: appliedDiscountRules.length === 1 ? appliedDiscountRules[0] : null,
       appliedDiscountRules,
-      combinedDiscountPercent: percentTotal,
+      combinedDiscountPercent: 0, // Not used in new logic
       tax,
       taxPercentage,
       total,
       includeTax,
+      discountedRepairId: appliedDiscountRules.length > 0 ? appliedDiscountRules[0].discountedRepairId : null,
     };
   };
 
@@ -1900,17 +1908,38 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             </p>
                           )}
                           <div className="flex items-baseline gap-2">
-                            <p className="text-2xl font-bold text-primary">
-                              {(() => {
-                                const actualPrice = isSelected ? getRepairPrice(repair.id) : displayPrice;
-                                return actualPrice === 0 ? (
-                                  <span className="text-base">Price on request</span>
-                                ) : (
-                                  `$${actualPrice}`
-                                );
-                              })()}
-                            </p>
-                            { displayPrice > 0 && (
+                            {(() => {
+                              const actualPrice = isSelected ? getRepairPrice(repair.id) : displayPrice;
+                              const pricing = calculatePricing();
+                              const isDiscounted = pricing.discountedRepairId === repair.id;
+                              
+                              return actualPrice === 0 ? (
+                                <span className="text-base">Price on request</span>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  {isDiscounted ? (
+                                    <div className="flex flex-col">
+                                      <span className="text-lg line-through text-muted-foreground">
+                                        ${actualPrice}
+                                      </span>
+                                      <span className="text-2xl font-bold text-green-600">
+                                        ${(actualPrice - pricing.discount).toFixed(2)}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-2xl font-bold text-primary">
+                                      ${actualPrice}
+                                    </span>
+                                  )}
+                                  {isDiscounted && pricing.appliedDiscountRules.length > 0 && (
+                                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                                      {pricing.appliedDiscountRules[0].name} - Save ${pricing.discount.toFixed(2)}
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                            { displayPrice > 0 && !isSelected && (
                               <span className="text-sm text-muted-foreground">
                                 starting at
                               </span>
@@ -1981,6 +2010,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                       );
                       if (!repair) return null;
                       const quality = repairPartQuality[repairId];
+                      const pricing = calculatePricing();
+                      const isDiscounted = pricing.discountedRepairId === repairId;
                       
                       return (
                         <div
@@ -1990,9 +2021,16 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                           <div className="flex items-center gap-3 flex-1">
                             <RepairIconComponent repairId={repair.id} className="h-8 w-8 text-primary" />
                             <div className="flex-1">
-                              <p className="font-medium text-sm">
-                                {repair.name}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-sm">
+                                  {repair.name}
+                                </p>
+                                {isDiscounted && pricing.appliedDiscountRules.length > 0 && (
+                                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                                    {pricing.appliedDiscountRules[0].name} - Save ${pricing.discount.toFixed(2)}
+                                  </Badge>
+                                )}
+                              </div>
                               {quality && (() => {
                                 const modelRepair = (selectedModel as any)?.repairs?.find(
                                   (r: any) => {
@@ -2021,9 +2059,22 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold">
-                              {getRepairPrice(repairId) === 0 ? "Price on request" : `$${getRepairPrice(repairId)}`}
-                            </p>
+                            <div className="text-right">
+                              {isDiscounted ? (
+                                <div>
+                                  <p className="text-sm line-through text-muted-foreground">
+                                    ${getRepairPrice(repairId)}
+                                  </p>
+                                  <p className="font-semibold text-green-600">
+                                    ${(getRepairPrice(repairId) - pricing.discount).toFixed(2)}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="font-semibold">
+                                  {getRepairPrice(repairId) === 0 ? "Price on request" : `$${getRepairPrice(repairId)}`}
+                                </p>
+                              )}
+                            </div>
                             <button
                               onClick={() => handleRepairToggle(repairId)}
                               className="text-muted-foreground hover:text-destructive transition-colors"
@@ -2327,7 +2378,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             <li>You'll be responsible for shipping costs each way.</li>
                             <li>We aim to repair each device and ship it back out the same day it arrives!</li>
                             <li>Pack your device as securely as possible to prevent further damage.</li>
-                            <li>If the frame (metal bezel between the screen and back glass) is bent, curved, or cracked, please text us a video of the condition for accurate pricing <strong>727.657.8390</strong></li>
+                            <li>If the frame (metal bezel between the screen and back glass) is bent, curved, or cracked, please text us a video of the condition for accurate pricing <strong>+1 (325) 321-9502</strong></li>
                             <li>Please be sure to send a tracking number for the shipment so that we can plan for its arrival.</li>
                           </ul>
                         </div>
@@ -2616,6 +2667,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                         );
                         if (!repair) return null;
                         const quality = repairPartQuality[repairId];
+                        const pricing = calculatePricing();
+                        const isDiscounted = pricing.discountedRepairId === repairId;
                         
                         return (
                           <div
@@ -2625,9 +2678,16 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             <div className="flex items-center gap-2 flex-1">
                               <RepairIconComponent repairId={repair.id} className="h-5 w-5 text-primary shrink-0" />
                               <div className="flex-1">
-                                <p className="text-sm font-medium">
-                                  {repair.name}
-                                </p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium">
+                                    {repair.name}
+                                  </p>
+                                  {isDiscounted && pricing.appliedDiscountRules.length > 0 && (
+                                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                                      {pricing.appliedDiscountRules[0].name} - Save ${pricing.discount.toFixed(2)}
+                                    </Badge>
+                                  )}
+                                </div>
                                 {quality && (() => {
                                   const modelRepair = (selectedModel as any)?.repairs?.find(
                                     (r: any) => {
@@ -2655,9 +2715,22 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 </p>
                               </div>
                             </div>
-                            <p className="font-semibold">
-                              {getRepairPrice(repairId) === 0 ? "Price on request" : `$${getRepairPrice(repairId)}`}
-                            </p>
+                            <div className="text-right">
+                              {isDiscounted ? (
+                                <div>
+                                  <p className="text-sm line-through text-muted-foreground">
+                                    ${getRepairPrice(repairId)}
+                                  </p>
+                                  <p className="font-semibold text-green-600">
+                                    ${(getRepairPrice(repairId) - pricing.discount).toFixed(2)}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="font-semibold">
+                                  {getRepairPrice(repairId) === 0 ? "Price on request" : `$${getRepairPrice(repairId)}`}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
