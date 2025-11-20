@@ -48,7 +48,7 @@ import { LpNavbar1 } from "@/components/pro-blocks/landing-page/lp-navbars/lp-na
 import { Footer1 } from "@/components/pro-blocks/landing-page/footers/footer-1";
 import Image from "next/image";
 import { Brand, DeviceModel, RepairItem } from "@/lib/repairData";
-import { Tabs,TabsTrigger , TabsList,TabsContent} from "@/components/ui/tabs";
+import { Tabs, TabsTrigger, TabsList, TabsContent } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 
@@ -76,12 +76,12 @@ const formatDuration = (duration: string) => {
 const SERVICE_METHODS = [
   {
     id: "location",
-    title: "At Our Location",
+    title: "Service at your location",
     subtitle: "Mobile Repair (FOTG Only)",
   },
   {
-    id: "pickup", 
-    title: "Pick-up & Delivery",
+    id: "pickup",
+    title: "Ship Device",
     subtitle: "Repaired within 24 hours",
   },
 ];
@@ -115,36 +115,36 @@ function GetAQuotePageContent() {
   // Booking state for location service
   const [bookingDate, setBookingDate] = useState<Date | null>(null);
   const [bookingTimeSlot, setBookingTimeSlot] = useState("");
-  const [availableSlots, setAvailableSlots] = useState<Array<{id: string, label: string, startTime: string, endTime: string, active: boolean, isAvailable: boolean, isBooked: boolean, isPast?: boolean}>>([]);
+  const [availableSlots, setAvailableSlots] = useState<Array<{ id: string, label: string, startTime: string, endTime: string, active: boolean, isAvailable: boolean, isBooked: boolean, isPast?: boolean }>>([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
 
   // Helper function to check if a time slot is in the past (using US Central timezone)
   const isTimeSlotPast = (date: Date, timeString: string): boolean => {
     const TZ = "America/Chicago";
-    
+
     // Get current time in US Central timezone
     const nowInCentral = new Date(new Date().toLocaleString("en-US", { timeZone: TZ }));
-    
+
     // Parse time string (format: "HH:MM AM/PM")
     const timeMatch = timeString.match(/(\d+):(\d+)\s*(AM|PM)/i);
     if (!timeMatch) return false;
-    
+
     let hours = parseInt(timeMatch[1]);
     const minutes = parseInt(timeMatch[2]);
     const period = timeMatch[3].toUpperCase();
-    
+
     // Convert to 24-hour format
     if (period === 'PM' && hours !== 12) {
       hours += 12;
     } else if (period === 'AM' && hours === 12) {
       hours = 0;
     }
-    
+
     // Create the slot time in US Central timezone
     const dateStr = date.toLocaleDateString("en-CA"); // YYYY-MM-DD
     const slotDateTimeStr = `${dateStr}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
     const slotDateInCentral = new Date(new Date(slotDateTimeStr).toLocaleString("en-US", { timeZone: TZ }));
-    
+
     return slotDateInCentral < nowInCentral;
   };
 
@@ -215,7 +215,7 @@ function GetAQuotePageContent() {
     if (repair?.iconUrl) {
       return repair.iconUrl;
     }
-    
+
     // Fallback to Lucide icons based on icon name
     const iconMap: Record<string, any> = {
       screen: Monitor,
@@ -236,7 +236,7 @@ function GetAQuotePageContent() {
   // Helper component to render repair icon
   const RepairIconComponent = ({ repairId, className }: { repairId: string, className: string }) => {
     const icon = getRepairIcon(repairId);
-    
+
     if (typeof icon === 'string') {
       // It's an uploaded image URL
       const size = className.includes('h-10') ? 40 : className.includes('h-8') ? 32 : className.includes('h-5') ? 20 : 24; // h-10 = 40px, h-8 = 32px, h-5 = 20px, h-6 = 24px
@@ -256,76 +256,76 @@ function GetAQuotePageContent() {
     }
   };
 
-// Helper function to render variants with show more/less
-const renderVariants = (variants: string[], modelId: string, showAllByDefault: boolean = false, center: boolean = true) => {
-  const maxVisible = 2;
-  const isExpanded = showAllByDefault || expandedVariants.has(modelId);
-  const visibleVariants = isExpanded ? variants : variants.slice(0, maxVisible);
-  const hasMore = variants.length > maxVisible;
+  // Helper function to render variants with show more/less
+  const renderVariants = (variants: string[], modelId: string, showAllByDefault: boolean = false, center: boolean = true) => {
+    const maxVisible = 2;
+    const isExpanded = showAllByDefault || expandedVariants.has(modelId);
+    const visibleVariants = isExpanded ? variants : variants.slice(0, maxVisible);
+    const hasMore = variants.length > maxVisible;
 
-  return (
-    <div className={`text-xs text-muted-foreground mt-1 relative group ${center ? 'text-center' : ''}`}>
-      <div className="transition-all duration-200">
-        {visibleVariants.join(", ")}
-        {hasMore && !isExpanded && (
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpandedVariants((prev) => new Set(prev).add(modelId));
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
+    return (
+      <div className={`text-xs text-muted-foreground mt-1 relative group ${center ? 'text-center' : ''}`}>
+        <div className="transition-all duration-200">
+          {visibleVariants.join(", ")}
+          {hasMore && !isExpanded && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
                 e.stopPropagation();
                 setExpandedVariants((prev) => new Set(prev).add(modelId));
-              }
-            }}
-            className="ml-1 text-primary hover:underline cursor-pointer"
-          >
-            +{variants.length - maxVisible} more
-          </span>
-        )}
-        {hasMore && isExpanded && !showAllByDefault && (
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpandedVariants((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(modelId);
-                return newSet;
-              });
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setExpandedVariants((prev) => new Set(prev).add(modelId));
+                }
+              }}
+              className="ml-1 text-primary hover:underline cursor-pointer"
+            >
+              +{variants.length - maxVisible} more
+            </span>
+          )}
+          {hasMore && isExpanded && !showAllByDefault && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
                 e.stopPropagation();
                 setExpandedVariants((prev) => {
                   const newSet = new Set(prev);
                   newSet.delete(modelId);
                   return newSet;
                 });
-              }
-            }}
-            className="ml-1 text-primary hover:underline cursor-pointer"
-          >
-            show less
-          </span>
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setExpandedVariants((prev) => {
+                    const newSet = new Set(prev);
+                    newSet.delete(modelId);
+                    return newSet;
+                  });
+                }
+              }}
+              className="ml-1 text-primary hover:underline cursor-pointer"
+            >
+              show less
+            </span>
+          )}
+        </div>
+        {/* Hover tooltip showing all variants */}
+        {hasMore && (
+          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
+            {variants.join(", ")}
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
+          </div>
         )}
       </div>
-      {/* Hover tooltip showing all variants */}
-      {hasMore && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-black text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
-          {variants.join(", ")}
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black"></div>
-        </div>
-      )}
-    </div>
-  );
-};  // Fetch brands, models, and repairs from backend
+    );
+  };  // Fetch brands, models, and repairs from backend
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -381,7 +381,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                 }
               });
             }
-            
+
             // Handle brandId - it can be an ObjectId string or a populated object
             let extractedBrandId = "";
             let extractedBrandName = "";
@@ -500,6 +500,13 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
     fetchAvailableSlots();
   }, [bookingDate, serviceMethod]);
 
+  // Scroll to top when navigating to finalize step
+  useEffect(() => {
+    if (step === "finalize") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [step]);
+
   const getFilteredBrands = () => {
     let filteredBrands = brands;
 
@@ -605,16 +612,16 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
 
   const getFilteredRepairs = () => {
     if (!selectedModel) return [];
-    
+
     // Only show repairs that are specifically added to this model
     const modelRepairIds = (selectedModel as any).repairs?.map((r: any) => {
       // Handle both populated repairId object and direct repairId string
-      const rId = typeof r.repairId === "object" 
-        ? (r.repairId?._id ?? r.repairId?.id) 
+      const rId = typeof r.repairId === "object"
+        ? (r.repairId?._id ?? r.repairId?.id)
         : r.repairId;
       return String(rId);
     }) || [];
-    
+
     // Filter repairs to only include those added to the model
     return repairs.filter((repair) => modelRepairIds.includes(String(repair.id)));
   };
@@ -653,17 +660,17 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
 
   const handleRepairToggle = (repairId: string) => {
     const isSelected = selectedRepairs.includes(repairId);
-    
+
     // Check if this repair has quality options from the model's repair data
     const modelRepair = (selectedModel as any)?.repairs?.find(
       (r: any) => {
-        const rId = typeof r.repairId === "object" 
-          ? (r.repairId?._id ?? r.repairId?.id) 
+        const rId = typeof r.repairId === "object"
+          ? (r.repairId?._id ?? r.repairId?.id)
           : r.repairId;
         return String(rId) === String(repairId);
       }
     );
-    
+
     // Check if repair has quality options - show dialog regardless of price
     // Some models may not include per-quality prices (empty qualityPrices) but the
     // repair definition itself can declare qualityOptions. Treat either as valid.
@@ -672,7 +679,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
       (modelRepair?.qualityPrices && modelRepair.qualityPrices.length > 0) ||
       Boolean((repairDef as any)?.qualityOptions?.length) ||
       Boolean((repairDef as any)?.hasQualityOptions);
-    
+
     if (!isSelected && hasQualityOptions) {
       // Show quality selection dialog when selecting a repair that has quality options
       setSelectedRepairForQuality(repairId);
@@ -711,8 +718,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
     const modelRepair = (selectedModel as any).repairs?.find(
       (r: any) => {
         // Handle both populated repairId object and direct repairId string
-        const rId = typeof r.repairId === "object" 
-          ? (r.repairId?._id ?? r.repairId?.id) 
+        const rId = typeof r.repairId === "object"
+          ? (r.repairId?._id ?? r.repairId?.id)
           : r.repairId;
         return String(rId) === String(repairId) || String(r.repairId) === String(repairId);
       }
@@ -724,7 +731,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
     }
 
     const quality = repairPartQuality[repairId];
-    
+
     // If quality is selected and quality prices are available
     if (quality && modelRepair.qualityPrices && modelRepair.qualityPrices.length > 0) {
       const qualityPrice = modelRepair.qualityPrices.find((qp: any) => qp.id === quality);
@@ -732,7 +739,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
         return qualityPrice.price || 0;
       }
     }
-    
+
     // Return base price for this model
     return modelRepair.basePrice || 0;
   };
@@ -901,12 +908,12 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
       const repairsData = selectedRepairs.map((repairId) => {
         const repair = repairs.find((r) => r.id === repairId);
         const quality = repairPartQuality[repairId];
-        
+
         // Get quality options from backend data
         const modelRepair = (selectedModel as any)?.repairs?.find(
           (r: any) => {
-            const rId = typeof r.repairId === "object" 
-              ? (r.repairId?._id ?? r.repairId?.id) 
+            const rId = typeof r.repairId === "object"
+              ? (r.repairId?._id ?? r.repairId?.id)
               : r.repairId;
             return rId === repairId;
           }
@@ -1054,24 +1061,22 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
           <div className="container-padding-x container mx-auto py-6">
             <div className="flex items-center justify-center gap-8">
               <div
-                className={`flex items-center gap-2 ${
-                  step === "device-type" ||
+                className={`flex items-center gap-2 ${step === "device-type" ||
                   step === "brand" ||
                   step === "model" ||
                   step === "color"
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground"
-                }`}
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground"
+                  }`}
               >
                 <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                    step === "device-type" ||
+                  className={`flex h-8 w-8 items-center justify-center rounded-full ${step === "device-type" ||
                     step === "brand" ||
                     step === "model" ||
                     step === "color"
-                      ? "bg-primary text-white"
-                      : "bg-muted"
-                  }`}
+                    ? "bg-primary text-white"
+                    : "bg-muted"
+                    }`}
                 >
                   1
                 </span>
@@ -1079,16 +1084,14 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
               </div>
               <div className="h-px w-16 bg-border"></div>
               <div
-                className={`flex items-center gap-2 ${
-                  step === "repair"
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground"
-                }`}
+                className={`flex items-center gap-2 ${step === "repair"
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground"
+                  }`}
               >
                 <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                    step === "repair" ? "bg-primary text-white" : "bg-muted"
-                  }`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full ${step === "repair" ? "bg-primary text-white" : "bg-muted"
+                    }`}
                 >
                   2
                 </span>
@@ -1096,16 +1099,14 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
               </div>
               <div className="h-px w-16 bg-border"></div>
               <div
-                className={`flex items-center gap-2 ${
-                  step === "finalize"
-                    ? "text-primary font-semibold"
-                    : "text-muted-foreground"
-                }`}
+                className={`flex items-center gap-2 ${step === "finalize"
+                  ? "text-primary font-semibold"
+                  : "text-muted-foreground"
+                  }`}
               >
                 <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                    step === "finalize" ? "bg-primary text-white" : "bg-muted"
-                  }`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full ${step === "finalize" ? "bg-primary text-white" : "bg-muted"
+                    }`}
                 >
                   3
                 </span>
@@ -1124,10 +1125,10 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                 {isLoadingBrands && isLoadingModels && isLoadingRepairs
                   ? "Loading devices and repairs..."
                   : isLoadingBrands
-                  ? "Loading device brands..."
-                  : isLoadingModels
-                  ? "Loading device models..."
-                  : "Loading repair services..."}
+                    ? "Loading device brands..."
+                    : isLoadingModels
+                      ? "Loading device models..."
+                      : "Loading repair services..."}
               </p>
             </div>
           )}
@@ -1245,7 +1246,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                       </p>
                                       <div className="text-xs text-muted-foreground mt-1">
                                         {model.variants && model.variants.length > 0
-                                          ? model.variants.slice(0,2).join(", ")
+                                          ? model.variants.slice(0, 2).join(", ")
                                           : null}
                                       </div>
                                     </div>
@@ -1638,7 +1639,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                   />
                   <div className="absolute inset-y-0 right-0 flex items-center pr-2">
                     {modelSearch ? (
-                      <Button size="sm" variant="ghost" onClick={() => setModelSearch("")}> 
+                      <Button size="sm" variant="ghost" onClick={() => setModelSearch("")}>
                         <X className="h-4 w-4" />
                       </Button>
                     ) : (
@@ -1685,19 +1686,19 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                               {model.deviceType === "smartphone"
                                 ? "📱"
                                 : model.deviceType === "tablet"
-                                ? "📱"
-                                : "💻"}
+                                  ? "📱"
+                                  : "💻"}
                             </div>
                           )}
                         </div>
                         <div className="flex-1 flex flex-col justify-start min-h-0">
                           <p className="font-semibold text-sm text-center mb-2 h-10 flex items-center justify-center overflow-hidden"
-                             style={{
-                               display: '-webkit-box',
-                               WebkitLineClamp: 2,
-                               WebkitBoxOrient: 'vertical' as const,
-                               lineHeight: '1.25rem'
-                             }}>
+                            style={{
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical' as const,
+                              lineHeight: '1.25rem'
+                            }}>
                             {model.name}
                           </p>
                           <div className="flex-1 flex items-start justify-center">
@@ -1734,8 +1735,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                           {selectedModel.deviceType === "smartphone"
                             ? "📱"
                             : selectedModel.deviceType === "tablet"
-                            ? "📱"
-                            : "💻"}
+                              ? "📱"
+                              : "💻"}
                         </div>
                       )}
                     </div>
@@ -1791,11 +1792,10 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                           title={color.name}
                         >
                           <div
-                            className={`h-16 w-16 rounded-full border-4 transition-all shadow-md hover:scale-110 ${
-                              selectedColor === color.id
-                                ? "border-primary ring-4 ring-primary ring-offset-2 scale-110"
-                                : "border-gray-300 hover:border-gray-400"
-                            }`}
+                            className={`h-16 w-16 rounded-full border-4 transition-all shadow-md hover:scale-110 ${selectedColor === color.id
+                              ? "border-primary ring-4 ring-primary ring-offset-2 scale-110"
+                              : "border-gray-300 hover:border-gray-400"
+                              }`}
                             style={{ backgroundColor: color.hex }}
                           />
                           {selectedColor === color.id && (
@@ -1805,9 +1805,9 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 style={{
                                   filter:
                                     color.hex === "#FFFFFF" ||
-                                    color.hex === "#F5F5F7" ||
-                                    color.hex === "#F5F5DC" ||
-                                    color.hex === "#E5E5EA"
+                                      color.hex === "#F5F5F7" ||
+                                      color.hex === "#F5F5DC" ||
+                                      color.hex === "#E5E5EA"
                                       ? "invert(1)"
                                       : "none",
                                 }}
@@ -1860,37 +1860,36 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {displayedRepairs.map((repair) => {
                     const isSelected = selectedRepairs.includes(repair.id);
-                    
+
                     // Get the model-specific pricing for this repair
                     const modelRepair = (selectedModel as any).repairs?.find(
                       (r: any) => {
-                        const rId = typeof r.repairId === "object" 
-                          ? (r.repairId?._id ?? r.repairId?.id) 
+                        const rId = typeof r.repairId === "object"
+                          ? (r.repairId?._id ?? r.repairId?.id)
                           : r.repairId;
                         return String(rId) === String(repair.id);
                       }
                     );
-                    
+
                     // Check if repair has quality options from backend
                     const hasQualityOptions = modelRepair?.qualityPrices && modelRepair.qualityPrices.length > 0;
                     const selectedQuality = repairPartQuality[repair.id];
-                    
+
                     // Debug logging for quality options
                     // console.log(`Repair ${repair.id} has quality options:`, hasQualityOptions);
                     // console.log(`Selected quality for ${repair.id}:`, selectedQuality);
                     // console.log(`Quality prices for ${repair.id}:`, modelRepair?.qualityPrices);
-                    
+
                     // Use model-specific base price
                     const displayPrice = modelRepair?.basePrice ?? 0;
-                    
+
                     return (
                       <Card
                         key={repair.id}
-                        className={`cursor-pointer transition-all ${
-                          isSelected
-                            ? "border-primary bg-primary/5"
-                            : "hover:border-primary/50"
-                        }`}
+                        className={`cursor-pointer transition-all ${isSelected
+                          ? "border-primary bg-primary/5"
+                          : "hover:border-primary/50"
+                          }`}
                         onClick={() => handleRepairToggle(repair.id)}
                       >
                         <div className="p-6">
@@ -1920,7 +1919,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                             // Find quality details from repair data
                             const repairData = repairs.find((r) => r.id === repair.id);
                             const qualityDetails = (repairData as any)?.qualityOptions?.find((q: any) => q.id === selectedQuality);
-                            
+
                             return selectedQualityData ? (
                               <Badge variant="secondary" className="mb-2">
                                 {qualityDetails?.name || selectedQualityData.name || selectedQuality}
@@ -1940,7 +1939,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                               const discountAmount = discountInfo ? discountInfo.discountAmount : 0;
                               const appliedRules = discountInfo ? discountInfo.appliedRules : [];
                               const finalPrice = actualPrice - discountAmount;
-                              
+
                               return actualPrice === 0 ? (
                                 <span className="text-base">Price on request</span>
                               ) : (
@@ -1967,7 +1966,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 </div>
                               );
                             })()}
-                            { displayPrice > 0 && !isSelected && (
+                            {displayPrice > 0 && !isSelected && (
                               <span className="text-sm text-muted-foreground">
                                 starting at
                               </span>
@@ -2044,7 +2043,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                       const appliedRules = discountInfo ? discountInfo.appliedRules : [];
                       const originalPrice = getRepairPrice(repairId);
                       const finalPrice = originalPrice - discountAmount;
-                      
+
                       return (
                         <div
                           key={repairId}
@@ -2066,8 +2065,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                               {quality && (() => {
                                 const modelRepair = (selectedModel as any)?.repairs?.find(
                                   (r: any) => {
-                                    const rId = typeof r.repairId === "object" 
-                                      ? (r.repairId?._id ?? r.repairId?.id) 
+                                    const rId = typeof r.repairId === "object"
+                                      ? (r.repairId?._id ?? r.repairId?.id)
                                       : r.repairId;
                                     return rId === repairId;
                                   }
@@ -2078,7 +2077,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 // Find quality details from repair data
                                 const repairData = repairs.find((r) => r.id === repairId);
                                 const qualityDetails = (repairData as any)?.qualityOptions?.find((q: any) => q.id === quality);
-                                
+
                                 return qualityData ? (
                                   <Badge variant="outline" className="text-xs mt-1">
                                     {qualityDetails?.name || qualityData.name || quality}
@@ -2123,18 +2122,18 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                   <div className="pt-4 space-y-2">
                     {(() => {
                       const pricing = calculatePricing();
-                      
+
                       // Check for combo discount rules (rules that require multiple repairs)
-                      const comboDiscountRules = settings?.discountRules?.filter((rule: any) => 
+                      const comboDiscountRules = settings?.discountRules?.filter((rule: any) =>
                         rule.active && rule.minRepairs && rule.minRepairs > 1
                       ) || [];
-                      
+
                       const hasComboDiscounts = comboDiscountRules.length > 0;
-                      const nextRepairThreshold = comboDiscountRules.length > 0 
+                      const nextRepairThreshold = comboDiscountRules.length > 0
                         ? Math.min(...comboDiscountRules.map((r: any) => r.minRepairs))
                         : null;
                       const canApplyComboDiscount = nextRepairThreshold && selectedRepairs.length >= nextRepairThreshold - 1;
-                      
+
                       return (
                         <>
                           {hasComboDiscounts && canApplyComboDiscount && (
@@ -2221,11 +2220,10 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                         return (
                           <label
                             key={method.id}
-                            className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                              serviceMethod === method.id
-                                ? "border-primary bg-primary/5"
-                                : "hover:border-primary/50"
-                            }`}
+                            className={`flex items-center gap-4 p-4 border-2 rounded-lg cursor-pointer transition-all ${serviceMethod === method.id
+                              ? "border-primary bg-primary/5"
+                              : "hover:border-primary/50"
+                              }`}
                           >
                             <RadioGroupItem value={method.id} />
                             <div className="flex-1">
@@ -2255,7 +2253,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                         <Calendar className="h-5 w-5 text-primary" />
                         Select Your Appointment
                       </h3>
-                      
+
                       <div className="space-y-2">
                         <Label>
                           Select Date <span className="text-red-500">*</span>
@@ -2319,17 +2317,16 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 // Use isPast from backend (already calculated in US Central time)
                                 const isPast = slot.isPast || false;
                                 const isDisabled = slot.isBooked || isPast;
-                                
+
                                 return (
                                   <label
                                     key={slot.id}
-                                    className={`flex items-center justify-between gap-2 p-3 border-2 rounded-lg text-sm transition-all ${
-                                      isDisabled
-                                        ? "border-red-300 bg-red-50 cursor-not-allowed opacity-60"
-                                        : bookingTimeSlot === slot.label
+                                    className={`flex items-center justify-between gap-2 p-3 border-2 rounded-lg text-sm transition-all ${isDisabled
+                                      ? "border-red-300 bg-red-50 cursor-not-allowed opacity-60"
+                                      : bookingTimeSlot === slot.label
                                         ? "border-primary bg-primary/5 cursor-pointer"
                                         : "hover:border-primary/50 cursor-pointer"
-                                    }`}
+                                      }`}
                                   >
                                     <div className="flex items-center gap-2">
                                       <RadioGroupItem
@@ -2372,7 +2369,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                       <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
                         <h4 className="font-semibold text-blue-900 dark:text-blue-100 flex items-center gap-2">
                           <Truck className="h-4 w-4 " />
-                          SEND YOUR DEVICE TO 
+                          SEND YOUR DEVICE TO
                         </h4>
                         <div className="font-mono text-sm bg-white dark:bg-gray-800 p-3 rounded border">
                           2950 Mustang<br />
@@ -2482,21 +2479,19 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                     <div className="flex gap-4">
                       <button
                         onClick={() => setCustomerType("private")}
-                        className={`flex-1 p-3 border-2 rounded-lg font-semibold transition-all ${
-                          customerType === "private"
-                            ? "border-primary bg-primary text-white"
-                            : "hover:border-primary"
-                        }`}
+                        className={`flex-1 p-3 border-2 rounded-lg font-semibold transition-all ${customerType === "private"
+                          ? "border-primary bg-primary text-white"
+                          : "hover:border-primary"
+                          }`}
                       >
                         Private
                       </button>
                       <button
                         onClick={() => setCustomerType("business")}
-                        className={`flex-1 p-3 border-2 rounded-lg font-semibold transition-all ${
-                          customerType === "business"
-                            ? "border-primary bg-primary text-white"
-                            : "hover:border-primary"
-                        }`}
+                        className={`flex-1 p-3 border-2 rounded-lg font-semibold transition-all ${customerType === "business"
+                          ? "border-primary bg-primary text-white"
+                          : "hover:border-primary"
+                          }`}
                       >
                         Business
                       </button>
@@ -2605,7 +2600,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                       className="w-full"
                       size="lg"
                       disabled={
-                        !serviceMethod || 
+                        !serviceMethod ||
                         isSubmitting ||
                         (serviceMethod === "location" && (!bookingDate || !bookingTimeSlot)) ||
                         (serviceMethod === "pickup" && (!shippingAddress.houseNumber || !shippingAddress.streetName || !shippingAddress.city || !shippingAddress.zipcode))
@@ -2648,8 +2643,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                           {selectedModel?.deviceType === "smartphone"
                             ? "📱"
                             : selectedModel?.deviceType === "tablet"
-                            ? "📱"
-                            : "💻"}
+                              ? "📱"
+                              : "💻"}
                         </div>
                       )}
                       <div className="flex-1">
@@ -2683,7 +2678,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                         const appliedRules = discountInfo ? discountInfo.appliedRules : [];
                         const originalPrice = getRepairPrice(repairId);
                         const finalPrice = originalPrice - discountAmount;
-                        
+
                         return (
                           <div
                             key={repairId}
@@ -2705,8 +2700,8 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                 {quality && (() => {
                                   const modelRepair = (selectedModel as any)?.repairs?.find(
                                     (r: any) => {
-                                      const rId = typeof r.repairId === "object" 
-                                        ? (r.repairId?._id ?? r.repairId?.id) 
+                                      const rId = typeof r.repairId === "object"
+                                        ? (r.repairId?._id ?? r.repairId?.id)
                                         : r.repairId;
                                       return rId === repairId;
                                     }
@@ -2717,7 +2712,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                                   // Find quality details from repair data
                                   const repairData = repairs.find((r) => r.id === repairId);
                                   const qualityDetails = (repairData as any)?.qualityOptions?.find((q: any) => q.id === quality);
-                                  
+
                                   return qualityData ? (
                                     <Badge variant="outline" className="text-xs mt-1">
                                       {qualityDetails?.name || qualityData.name || quality}
@@ -2760,14 +2755,12 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                           <button
                             id="include-tax"
                             onClick={() => setIncludeTax(!includeTax)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              includeTax ? 'bg-primary' : 'bg-gray-200'
-                            }`}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${includeTax ? 'bg-primary' : 'bg-gray-200'
+                              }`}
                           >
                             <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                includeTax ? 'translate-x-6' : 'translate-x-1'
-                              }`}
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${includeTax ? 'translate-x-6' : 'translate-x-1'
+                                }`}
                             />
                           </button>
                         </div>
@@ -2836,13 +2829,13 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
               Choose the quality of the part for your repair. Both options come with warranty.
             </DialogDescription>
           </DialogHeader>
-          
+
           {selectedRepairForQuality && selectedModel && (() => {
             // Find the model-specific repair pricing
             const modelRepair = (selectedModel as any).repairs?.find(
               (r: any) => {
-                const rId = typeof r.repairId === "object" 
-                  ? (r.repairId?._id ?? r.repairId?.id) 
+                const rId = typeof r.repairId === "object"
+                  ? (r.repairId?._id ?? r.repairId?.id)
                   : r.repairId;
                 return String(rId) === String(selectedRepairForQuality);
               }
@@ -2854,7 +2847,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                 { id: "official", name: "Official", description: "Made by the brand's Manufacturer", price: 0 },
                 { id: "compatible", name: "Compatible", description: "Best available alternative from an Independent Manufacturer", price: 0 }
               ];
-              
+
               return (
                 <div className="grid gap-4 py-4">
                   {defaultOptions.map((option) => (
@@ -2889,7 +2882,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
             // Get quality option details from the repair
             const repairData = repairs.find((r) => r.id === selectedRepairForQuality);
             const qualityOptions = (repairData as any)?.qualityOptions || [];
-            
+
             // console.log("Selected Repair ID:", selectedRepairForQuality);
             // console.log("Repair Data:", repairData);
             // console.log("Quality Options from repair:", qualityOptions);
@@ -2904,11 +2897,11 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                   // console.log("Quality Description:", qualityPrice.description);
                   // console.log("Quality Duration:", qualityPrice.duration);
                   // console.log("Quality Price:", qualityPrice.price);
-                  
+
                   // Find matching quality option details from repair data
                   const qualityDetails = qualityOptions.find((q: any) => q.id === qualityPrice.id);
                   // console.log("Matching quality details for id", qualityPrice.id, ":", qualityDetails);
-                  
+
                   return (
                     <Card
                       key={qualityPrice.id}
@@ -2966,13 +2959,13 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
               Follow the instructions below to find your device model number
             </DialogDescription>
           </DialogHeader>
-          
+
           <Tabs defaultValue="ios" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="ios">Apple iOS</TabsTrigger>
               <TabsTrigger value="android">Android</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="ios" className="space-y-6 mt-6">
               <div className="space-y-4">
                 <div className="space-y-3">
@@ -3031,7 +3024,7 @@ const renderVariants = (variants: string[], modelId: string, showAllByDefault: b
                 </div>
               </div>
             </TabsContent>
-            
+
             <TabsContent value="android" className="space-y-6 mt-6">
               <div className="space-y-4">
                 <div className="space-y-3">
