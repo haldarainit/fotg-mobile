@@ -244,8 +244,9 @@ export async function POST(request: NextRequest) {
       .join("");
 
     // Email content
+    const fromEmail = process.env.SMTP_USER || process.env.HOSTINGER_EMAIL;
     const adminMailOptions = {
-      from: process.env.HOSTINGER_EMAIL,
+      from: fromEmail,
       to: process.env.ADMIN_EMAIL || process.env.HOSTINGER_EMAIL,
       replyTo: email,
       subject: `New Quote Request - ${model.name} Repair - $${total}`,
@@ -469,8 +470,17 @@ Submission time: ${new Date().toLocaleString()}
       `,
     };
 
-    // Send admin email
-    await transporter.sendMail(adminMailOptions);
+    // Send admin email first
+    try {
+      await transporter.sendMail(adminMailOptions);
+      console.log('Admin email sent successfully');
+    } catch (adminEmailError) {
+      console.error('Failed to send admin email:', adminEmailError);
+      // Continue even if admin email fails - we still want to notify customer
+    }
+
+    // Add small delay to avoid Gmail rate limiting when sending multiple emails
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Prepare and send customer confirmation email including booking id
     try {
@@ -546,18 +556,18 @@ Submission time: ${new Date().toLocaleString()}
       `;
 
       const customerMailOptions = {
-        from: process.env.HOSTINGER_EMAIL,
+        from: fromEmail,
         to: email,
         subject: customerSubject,
         html: customerHtml,
       };
 
-      // Send confirmation to customer (don't block the main response if it fails)
-      transporter.sendMail(customerMailOptions).catch((e) => {
-        console.error('Failed to send customer confirmation email:', e);
-      });
-    } catch (e) {
-      console.error('Error preparing/sending customer email:', e);
+      // Send confirmation to customer with proper await and error handling
+      await transporter.sendMail(customerMailOptions);
+      console.log('Customer confirmation email sent successfully to:', email);
+    } catch (customerEmailError) {
+      console.error('Failed to send customer confirmation email:', customerEmailError);
+      // Log but don't fail the request - booking is already saved
     }
 
     return NextResponse.json(
