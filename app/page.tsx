@@ -11,11 +11,13 @@ import { FaqSection2 } from "@/components/pro-blocks/landing-page/faq-sections/f
 import { Footer1 } from "@/components/pro-blocks/landing-page/footers/footer-1";
 import { BrandRepairSection } from "@/components/pro-blocks/landing-page/brandpreparation/BrandRepairSection";
 import { FeaturesSection } from "@/components/pro-blocks/landing-page/feature-sections/FeaturesSection";
+import HeroCarousel from "@/components/HeroCarousel";
 
 export default function Page() {
   return (
     <main>
       <LpNavbar1 />
+      <HeroCarousel />
       <HeroSection2 />
       <LogoSection10 />
       <BrandRepairSection />
