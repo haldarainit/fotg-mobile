@@ -150,6 +150,13 @@ export function Footer1() {
                 Terms of Service
               </button>
             </TermsOfServiceModal>
+            <Link
+              href="https://www.myhai.in/"
+              target="_blank"
+              className="text-muted-foreground hover:text-foreground transition-colors font-semibold"
+            >
+              Powered by Haldar AI & IT Pvt. Ltd.
+            </Link>
           </nav>
         </div>
       </div>
