@@ -1,4 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyAdminCredentials, generateToken } from "@/lib/auth";
+import {
+  checkRateLimit,
+  recordFailedAttempt,
+  resetRateLimit,
+  getClientIdentifier,
+} from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,20 +19,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check credentials against environment variables
-    const adminEmail = process.env.ADMIN_EMAIL_LOGIN;
-    const adminPassword = process.env.ADMIN_PASSWORD;
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid email format" },
+        { status: 400 }
+      );
+    }
 
-    if (email === adminEmail && password === adminPassword) {
-      // Create session token (simple implementation)
-      const token = Buffer.from(`${email}:${Date.now()}`).toString("base64");
+    // Check rate limiting
+    const identifier = getClientIdentifier(request, email);
+    const rateLimitCheck = checkRateLimit(identifier);
+
+    if (!rateLimitCheck.allowed) {
+      const blockedMinutes = rateLimitCheck.blockedUntil
+        ? Math.ceil((rateLimitCheck.blockedUntil - Date.now()) / 60000)
+        : 30;
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Too many failed login attempts. Please try again in ${blockedMinutes} minutes.`,
+          blockedUntil: rateLimitCheck.blockedUntil,
+        },
+        { status: 429 }
+      );
+    }
+
+    // Verify credentials with secure comparison
+    const isValid = await verifyAdminCredentials(email, password);
+
+    if (isValid) {
+      // Reset rate limit on successful login
+      resetRateLimit(identifier);
+
+      // Generate secure JWT token
+      const token = await generateToken({
+        email,
+        role: "admin",
+      });
 
       const response = NextResponse.json({
         success: true,
         message: "Login successful",
       });
 
-      // Set HTTP-only cookie for session
+      // Set secure HTTP-only cookie
       response.cookies.set("admin_token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -36,15 +76,25 @@ export async function POST(request: NextRequest) {
 
       return response;
     } else {
+      // Record failed attempt
+      recordFailedAttempt(identifier);
+
+      // Get updated rate limit info
+      const updatedRateLimit = checkRateLimit(identifier);
+
       return NextResponse.json(
-        { success: false, error: "Invalid credentials" },
+        {
+          success: false,
+          error: "Invalid email or password",
+          remainingAttempts: updatedRateLimit.remainingAttempts,
+        },
         { status: 401 }
       );
     }
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(
-      { success: false, error: "Login failed" },
+      { success: false, error: "An error occurred during login" },
       { status: 500 }
     );
   }

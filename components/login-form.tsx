@@ -25,6 +25,7 @@ export function LoginForm({
 }: React.ComponentProps<"div">) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -47,10 +48,25 @@ export function LoginForm({
 
       if (data.success) {
         toast.success("Login successful!")
+        setRemainingAttempts(null)
         router.push("/admin")
         router.refresh()
       } else {
-        toast.error(data.error || "Login failed")
+        // Handle rate limiting
+        if (response.status === 429) {
+          toast.error(data.error || "Too many login attempts. Please try again later.")
+          setRemainingAttempts(0)
+        } else {
+          toast.error(data.error || "Login failed")
+          
+          // Show remaining attempts if available
+          if (data.remainingAttempts !== undefined) {
+            setRemainingAttempts(data.remainingAttempts)
+            if (data.remainingAttempts > 0) {
+              toast.warning(`${data.remainingAttempts} attempt(s) remaining before lockout`)
+            }
+          }
+        }
       }
     } catch (error) {
       console.error("Login error:", error)
@@ -68,6 +84,18 @@ export function LoginForm({
           <CardDescription>
             Enter your credentials to access the admin panel
           </CardDescription>
+          {remainingAttempts !== null && remainingAttempts < 5 && (
+            <div className={cn(
+              "text-sm font-medium mt-2 p-2 rounded-md",
+              remainingAttempts === 0 
+                ? "bg-destructive/10 text-destructive" 
+                : "bg-yellow-500/10 text-yellow-600 dark:text-yellow-500"
+            )}>
+              {remainingAttempts === 0 
+                ? "⚠️ Account temporarily locked due to too many failed attempts" 
+                : `⚠️ Warning: ${remainingAttempts} login attempt(s) remaining`}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>
