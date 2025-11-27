@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Phone, Mail, User, Sparkles, TabletSmartphone } from "lucide-react";
+import { X, Phone, Mail, User, Sparkles, TabletSmartphone, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 // Global flag to prevent multiple popup instances
@@ -17,6 +17,7 @@ export function DiscountPopup() {
         issue: "Discount Inquiry",
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showSuccess, setShowSuccess] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Sync local state with global flag
@@ -30,21 +31,20 @@ export function DiscountPopup() {
 
     // Prevent multiple instances by checking global flag on mount
     useEffect(() => {
-        if (globalIsOpen) {
-            // Another instance is already open, don't show this one
-            return;
-        }
 
         // Check if user has already submitted
         const hasSubmitted = localStorage.getItem("discount_submitted");
+
         if (hasSubmitted) {
             return; // Don't show popup if already submitted
         }
+
 
         // Show popup initially after 5 seconds
         const initialTimeout = setTimeout(() => {
             if (!globalIsOpen) {
                 setIsOpen(true);
+            } else {
             }
         }, 5000);
 
@@ -107,12 +107,20 @@ export function DiscountPopup() {
             });
 
             if (response.ok) {
+                // Show success animation
+                setShowSuccess(true);
                 toast.success("Thank you! We'll contact you soon with exclusive discount details.");
+                
                 // Mark as submitted in localStorage
                 localStorage.setItem("discount_submitted", "true");
-                setFormData({ name: "", email: "", phone: "", device: "", issue: "Discount Inquiry" });
-                setIsOpen(false);
-                globalIsOpen = false;
+                
+                // Close popup after success animation (2 seconds)
+                setTimeout(() => {
+                    setIsOpen(false);
+                    globalIsOpen = false;
+                    setShowSuccess(false);
+                    setFormData({ name: "", email: "", phone: "", device: "", issue: "Discount Inquiry" });
+                }, 2000);
             } else {
                 toast.error("Something went wrong. Please try again.");
             }
@@ -174,8 +182,52 @@ export function DiscountPopup() {
                             <div className="absolute top-0 left-0 w-24 h-24 bg-white/5 rounded-full -mt-12 -ml-12"></div>
                         </div>
 
-                        {/* Right Section - Form */}
-                        <form onSubmit={handleSubmit} className="p-6 md:p-8 md:w-3/5 space-y-4">
+                        {/* Right Section - Form or Success */}
+                        {showSuccess ? (
+                            <div className="p-6 md:p-8 md:w-3/5 flex flex-col items-center justify-center space-y-6 text-center">
+                                {/* Success Animation */}
+                                <div className="relative">
+                                    <div className="w-20 h-20 bg-gradient-to-r from-emerald-500 to-green-600 rounded-full flex items-center justify-center animate-bounce">
+                                        <svg
+                                            className="w-10 h-10 text-white"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={3}
+                                                d="M5 13l4 4L19 7"
+                                            />
+                                        </svg>
+                                    </div>
+                                    {/* Success particles/rings */}
+                                    <div className="absolute inset-0 rounded-full border-4 border-emerald-400 animate-ping opacity-20"></div>
+                                    <div className="absolute inset-2 rounded-full border-2 border-emerald-300 animate-ping opacity-40 animation-delay-100"></div>
+                                </div>
+
+                                {/* Success Message */}
+                                <div className="space-y-2">
+                                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center justify-center gap-2">
+                                        <CheckCircle className="h-8 w-8 text-emerald-600" />
+                                        Success!
+                                    </h3>
+                                    <p className="text-gray-600 dark:text-gray-300">
+                                        Your discount inquiry has been submitted successfully!
+                                    </p>
+                                    <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                                        We'll contact you soon with exclusive offers.
+                                    </p>
+                                </div>
+
+                                {/* Closing countdown */}
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    Closing in a moment...
+                                </div>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleSubmit} className="p-6 md:p-8 md:w-3/5 space-y-4">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 {/* Name Field */}
                                 <div className="space-y-1.5">
@@ -302,6 +354,7 @@ export function DiscountPopup() {
                                 We respect your privacy. Your information will only be used to send you exclusive discount offers.
                             </p>
                         </form>
+                        )}
                     </div>
                 </div>
             </div>
