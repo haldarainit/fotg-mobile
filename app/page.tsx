@@ -12,16 +12,19 @@ import { Footer1 } from "@/components/pro-blocks/landing-page/footers/footer-1";
 import { BrandRepairSection } from "@/components/pro-blocks/landing-page/brandpreparation/BrandRepairSection";
 import { FeaturesSection } from "@/components/pro-blocks/landing-page/feature-sections/FeaturesSection";
 import HeroCarousel from "@/components/HeroCarousel";
+import { DiscountPopup } from "@/components/DiscountPopup";
+
 
 export default function Page() {
   return (
     <main>
       <LpNavbar1 />
+      <DiscountPopup />
       <HeroCarousel />
       <HeroSection2 />
       <LogoSection10 />
       <BrandRepairSection />
-      <FeaturesSection   />
+      <FeaturesSection />
       {/* <BentoGrid6 /> */}
       <HowItWorksSection />
       <FeatureSection9 />
